@@ -1,7 +1,7 @@
       SUBROUTINE TVI.MSP.MNG(WRK.REC,OUTREC)
 ***********************************************************************
 *     Program Desc  : Motor Sale Protal
-*     Programmer    : Win,test
+*     Programmer    : Win TEST
 *     Creation Date : 06/09/2022
 *     Refference No : IT22_0356
 ***********************************************************************
