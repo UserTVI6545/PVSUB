@@ -1,0 +1,1931 @@
+      SUBROUTINE TVI.MSP.MNG(WRK.REC,OUTREC)
+***********************************************************************
+*     Program Desc  : Motor Sale Protal
+*     Programmer    : Win
+*     Creation Date : 06/09/2022
+*     Refference No : IT22_0356
+***********************************************************************
+$INCLUDE PV.INC PV.EQUATE
+$INCLUDE PV.EQU MT.VEHICLE
+$INCLUDE PV.EQU MT.POLICY
+$INCLUDE PV.EQU MT.VEHDET
+$INCLUDE PV.EQU VEHCATE.MAST
+$INCLUDE PV.EQU TESCO.PLAN.MAP
+$INCLUDE PV.EQU CAMPAIGN.MAST
+$INCLUDE PV.EQU MT.CHANGWAT
+$INCLUDE PV.EQU RISK.CHANGWAT
+$INCLUDE PV.EQU RISK.AMPHOE
+$INCLUDE PV.EQU CLIENT.MAST
+$INCLUDE PV.EQU MT.VEHTYPE
+$INCLUDE PV.EQU TITLE.MAST
+*
+      GOSUB 8000                         ; * Open files
+      GOSUB 9000                         ; * Initialize
+      GOSUB 2000                         ; * Main Processing
+      GOTO 9999                          ; * End of Job
+      RETURN
+1000:*--- Update AUDIT
+      WSAD.ID = DATE():"_":TIME():"_":RND(10000)
+      WSAD.REC = ""
+      WSAD.REC<1> = TRAN.ID
+      WSAD.REC<2> = DATE()
+      WSAD.REC<3> = TIME()
+      WSAD.REC<4> = "TVI.MSP.MNG"
+      WSAD.REC<5> = WS.DATA
+      WRITE WSAD.REC ON WSAD.FL, WSAD.ID
+      RETURN
+1110:*--- Mapping data for QUOTE
+      WRK.REC = CHANGE(WRK.REC,"๑","1")
+      WRK.REC = CHANGE(WRK.REC,"๒","2")
+      WRK.REC = CHANGE(WRK.REC,"๓","3")
+      WRK.REC = CHANGE(WRK.REC,"๔","4")
+      WRK.REC = CHANGE(WRK.REC,"๕","5")
+      WRK.REC = CHANGE(WRK.REC,"๖","6")
+      WRK.REC = CHANGE(WRK.REC,"๗","7")
+      WRK.REC = CHANGE(WRK.REC,"๘","8")
+      WRK.REC = CHANGE(WRK.REC,"๙","9")
+      WRK.REC = CHANGE(WRK.REC,"?","")
+      CNT1 = DCOUNT(WRK.REC,AM$)
+      FOR I = 1 TO CNT1
+         DATA.REC<I> = TRIM(WRK.REC<I>)
+      NEXT I
+*
+      AGENT.CODE = DATA.REC<4>
+      VEH.BRAND = DATA.REC<5>
+      VEH.MODEL = DATA.REC<6>
+      VEH.TYPE = DATA.REC<7>
+      DISP = DATA.REC<8>
+      WEIGHT = DATA.REC<9>
+      SEAT = DATA.REC<10>
+      YEAR.MADE = DATA.REC<11>
+      MIN.SI = DATA.REC<12>
+      MAX.SI = DATA.REC<13>
+      EDATE = DATA.REC<14>
+      PLATE.TYPE = DATA.REC<15>
+      VEH.NBR = DATA.REC<16>
+      REQ.POL.TYPE = DATA.REC<17>
+      CAMPAIGN.CODE = DATA.REC<18>
+      CAMPAIGN.CODE = CHANGE(CAMPAIGN.CODE,";",AM$)
+      CAMPAIGN.CNT = DCOUNT(CAMPAIGN.CODE,AM$)
+      IF REQ.POL.TYPE = "" THEN
+         REQ.POL.TYPE = "01":AM$:"02":AM$:"03"
+      END ELSE
+         REQ.POL.TYPE = CHANGE(REQ.POL.TYPE,";",AM$)
+      END
+*
+      IF YEAR.MADE[1,4] NE "" THEN
+         IF YEAR.MADE GE 2300 THEN YEAR.MADE-=543
+      END
+      LOCATE(VEH.TYPE,VEH.TYPE.PARAM,1;POS) THEN
+         UOM.INDEX = UOM.INDEX.PARAM<1,POS>
+         REQ.UOM = DATA.REC<UOM.INDEX>
+         MEASURE.REC = MEASURE.PARAM<1,POS>
+         UOM.REC = UOM.PARAM<1,POS>
+         CONVERT "," TO AM$ IN MEASURE.REC
+         CONVERT "," TO AM$ IN UOM.REC
+         RANGE.CNT = DCOUNT(MEASURE.REC,AM$)
+         FOR I = 1 TO RANGE.CNT
+            ST.MEASURE = FIELD(MEASURE.REC<I>,"-",1)
+            EN.MEASURE = FIELD(MEASURE.REC<I>,"-",2)
+            IF (REQ.UOM GE ST.MEASURE) AND (REQ.UOM LE EN.MEASURE) THEN
+               CAP.CODE = UOM.REC<I>
+               EXIT
+            END
+         NEXT I
+      END ELSE
+         CAP.CODE = ""
+      END
+      GOSUB 1300
+      RETURN
+1120:*--- Mapping data for VERIFY
+      WRK.REC = CHANGE(WRK.REC,"๑","1")
+      WRK.REC = CHANGE(WRK.REC,"๒","2")
+      WRK.REC = CHANGE(WRK.REC,"๓","3")
+      WRK.REC = CHANGE(WRK.REC,"๔","4")
+      WRK.REC = CHANGE(WRK.REC,"๕","5")
+      WRK.REC = CHANGE(WRK.REC,"๖","6")
+      WRK.REC = CHANGE(WRK.REC,"๗","7")
+      WRK.REC = CHANGE(WRK.REC,"๘","8")
+      WRK.REC = CHANGE(WRK.REC,"๙","9")
+      WRK.REC = CHANGE(WRK.REC,"?","")
+      CNT1 = DCOUNT(WRK.REC,AM$)
+      FOR I = 1 TO CNT1
+         DATA.REC<I> = TRIM(WRK.REC<I>)
+      NEXT I
+*
+      AGENT.CODE = DATA.REC<4>
+      REF.NBR = DATA.REC<20>
+      INSURED.NAME = DATA.REC<22>
+      INSURED.ID = DATA.REC<23>
+      CHASSIS.NBR = DATA.REC<50>
+      VEH.NBR = DATA.REC<16>
+      CAMPAIGN.CODE = DATA.REC<18>
+      VOL.EDATE = DATA.REC<46>
+      COMP.IND = DATA.REC<47>
+      COMP.EDATE = DATA.REC<48>
+      CHASSIS.NBR = CHANGE(CHASSIS.NBR," ","")
+      CHASSIS.NBR = UPCASE(CHASSIS.NBR)
+      VEH.NBR = CHANGE(VEH.NBR," ","")
+      IF TRIM(VEH.NBR) = "" THEN
+         PLATE.TYPE = "R"
+      END ELSE
+         PLATE.TYPE = "B"
+      END
+      VOL.XDATE="" ; COMP.XDATE=""
+      COVER.DAY = OCONV(CAMPAIGN.CODE,"TCAMPAIGN.MAST;X;;":CAMP.COVER.DAYS)
+      IF COVER.DAY+0 = 0 THEN
+         VOL.EDATE.YY = OCONV(VOL.EDATE,"DN")
+         VOL.XDATE.YY = VOL.EDATE.YY+1
+         VOL.XDATE.DD = OCONV(VOL.EDATE,"DD") 'R%2'
+         VOL.XDATE.MM = OCONV(VOL.EDATE,"DM") 'R%2'
+         VOL.XDATE = VOL.XDATE.DD:"/":VOL.XDATE.MM:"/":VOL.XDATE.YY
+         VOL.XDATE = ICONV(VOL.XDATE,"D")
+      END ELSE
+         VOL.XDATE = VOL.EDATE + COVER.DAY
+      END
+      IF COMP.IND = 1 THEN
+         COMP.EDATE.YY = OCONV(COMP.EDATE,"DN")
+         COMP.XDATE.YY = COMP.EDATE.YY+1
+         COMP.XDATE.DD = OCONV(COMP.EDATE,"DD") 'R%2'
+         COMP.XDATE.MM = OCONV(COMP.EDATE,"DM") 'R%2'
+         COMP.XDATE = COMP.XDATE.DD:"/":COMP.XDATE.MM:"/":COMP.XDATE.YY
+         COMP.XDATE = ICONV(COMP.XDATE,"D")
+      END
+      GOSUB 1300
+      RETURN
+1130:*--- Mapping data for GENPOLICY
+      WRK.REC = CHANGE(WRK.REC,"๑","1")
+      WRK.REC = CHANGE(WRK.REC,"๒","2")
+      WRK.REC = CHANGE(WRK.REC,"๓","3")
+      WRK.REC = CHANGE(WRK.REC,"๔","4")
+      WRK.REC = CHANGE(WRK.REC,"๕","5")
+      WRK.REC = CHANGE(WRK.REC,"๖","6")
+      WRK.REC = CHANGE(WRK.REC,"๗","7")
+      WRK.REC = CHANGE(WRK.REC,"๘","8")
+      WRK.REC = CHANGE(WRK.REC,"๙","9")
+      WRK.REC = CHANGE(WRK.REC,"?","")
+
+      CNT1 = DCOUNT(WRK.REC,AM$)
+      FOR I = 1 TO CNT1
+         DATA.REC<I> = TRIM(WRK.REC<I>)
+      NEXT I
+*
+      AGENT.CODE = DATA.REC<4>
+      REF.NBR = DATA.REC<20>
+      INSURED.TITLE = DATA.REC<21>
+      INSURED.NAME = DATA.REC<22>
+      INSURED.ID = DATA.REC<23>
+      INSURED.BRANCH.NBR = DATA.REC<24>
+      EMAIL = DATA.REC<25>
+      MOBILE.NO = DATA.REC<26>
+      POL.ADDRESS = DATA.REC<27>
+      POL.DISTRICT = DATA.REC<28>
+      POL.PROVINCE = DATA.REC<29>
+      POL.POST.CODE = DATA.REC<30>
+      RECP.CODE = DATA.REC<31>
+      RECP.TITLE = DATA.REC<32>
+      RECP.NAME = DATA.REC<33>
+      RECP.ADDRESS = DATA.REC<34>
+      RECP.DISTRICT = DATA.REC<35>
+      RECP.PROVINCE = DATA.REC<36>
+      RECP.POST.CODE = DATA.REC<37>
+      DEL.CODE = DATA.REC<38>
+      DEL.NAME = DATA.REC<39>
+      DEL.ADDRESS = DATA.REC<40>
+      DEL.DISTRICT = DATA.REC<41>
+      DEL.PROVINCE = DATA.REC<42>
+      DEL.POST.CODE = DATA.REC<43>
+      BENEFIT.CODE = DATA.REC<44>
+      BENEFIT.NAME = DATA.REC<45>
+      CAMPAIGN.CODE = DATA.REC<18>
+      VOL.EDATE = DATA.REC<46>
+      COMP.IND = DATA.REC<47>
+      COMP.EDATE = DATA.REC<48>
+      VEH.BRAND = DATA.REC<5>
+      VEH.MODEL = DATA.REC<6>
+      VEH.TYPE = DATA.REC<7>
+      VEH.COLOR = DATA.REC<49>
+      VEH.NBR = DATA.REC<16>
+      DISP = DATA.REC<8>
+      WEIGHT = DATA.REC<9>
+      SEAT = DATA.REC<10>
+      YEAR.MADE = DATA.REC<11>
+      CHASSIS.NBR = DATA.REC<50>
+      CAR.DECO = DATA.REC<51>
+      CAR.INSPECT = DATA.REC<52>
+      SUM.INS = DATA.REC<53>
+      VOL.GROSS.PRE = DATA.REC<54>
+      VOL.STAMP.AMT = DATA.REC<55>
+      VOL.VAT.AMT = DATA.REC<56>
+      VOL.TOT.PRE = DATA.REC<57>
+      COMP.GROSS.PRE = DATA.REC<58>
+      COMP.STAMP.AMT = DATA.REC<59>
+      COMP.VAT.AMT = DATA.REC<60>
+      COMP.TOT.PRE = DATA.REC<61>
+      WORK.STA = DATA.REC<62>
+      CAR.INSPECT.NAME = DATA.REC<63>
+      CAR.INSPECT.PHONE = DATA.REC<64>
+      CHASSIS.NBR = CHANGE(CHASSIS.NBR," ","")
+      CHASSIS.NBR = UPCASE(CHASSIS.NBR)
+      VEH.NBR = CHANGE(VEH.NBR," ","")
+      IF TRIM(VEH.NBR) = "" THEN
+         PLATE.TYPE = "R"
+      END ELSE
+         PLATE.TYPE = "B"
+      END
+      IF YEAR.MADE[1,4] NE "" THEN
+         IF YEAR.MADE GE 2300 THEN YEAR.MADE-=543
+      END
+      COVER.DAY = OCONV(CAMPAIGN.CODE,"TCAMPAIGN.MAST;X;;":CAMP.COVER.DAYS)
+      COVER.HOUR = OCONV(CAMPAIGN.CODE,"TCAMPAIGN.MAST;X;;":CAMP.COVER.HOURS)
+      VOL.XDATE="" ; COMP.XDATE=""
+      IF COVER.DAY+0 = 0 THEN
+         VOL.EDATE.YY = OCONV(VOL.EDATE,"DN")
+         VOL.XDATE.YY = VOL.EDATE.YY+1
+         VOL.XDATE.DD = OCONV(VOL.EDATE,"DD") 'R%2'
+         VOL.XDATE.MM = OCONV(VOL.EDATE,"DM") 'R%2'
+         VOL.XDATE = VOL.XDATE.DD:"/":VOL.XDATE.MM:"/":VOL.XDATE.YY
+         VOL.XDATE = ICONV(VOL.XDATE,"D")
+      END ELSE
+         VOL.XDATE = VOL.EDATE + COVER.DAY
+      END
+      IF COMP.IND = 1 THEN
+         COMP.EDATE.YY = OCONV(COMP.EDATE,"DN")
+         COMP.XDATE.YY = COMP.EDATE.YY+1
+         COMP.XDATE.DD = OCONV(COMP.EDATE,"DD") 'R%2'
+         COMP.XDATE.MM = OCONV(COMP.EDATE,"DM") 'R%2'
+         COMP.XDATE = COMP.XDATE.DD:"/":COMP.XDATE.MM:"/":COMP.XDATE.YY
+         COMP.XDATE = ICONV(COMP.XDATE,"D")
+      END
+      POL.TYPE = OCONV(CAMPAIGN.CODE,"TCAMPAIGN.MAST;X;;":CAMP.POL.TYPE)
+      LOCATE(VEH.TYPE,VEH.TYPE.PARAM,1;POS) THEN
+         UOM.INDEX = UOM.INDEX.PARAM<1,POS>
+         REQ.UOM = DATA.REC<UOM.INDEX>
+         MEASURE.REC = MEASURE.PARAM<1,POS>
+         UOM.REC = UOM.PARAM<1,POS>
+         CONVERT "," TO AM$ IN MEASURE.REC
+         CONVERT "," TO AM$ IN UOM.REC
+         RANGE.CNT = DCOUNT(MEASURE.REC,AM$)
+         FOR I = 1 TO RANGE.CNT
+            ST.MEASURE = FIELD(MEASURE.REC<I>,"-",1)
+            EN.MEASURE = FIELD(MEASURE.REC<I>,"-",2)
+            IF (REQ.UOM GE ST.MEASURE) AND (REQ.UOM LE EN.MEASURE) THEN
+               CAP.CODE = UOM.REC<I>
+               EXIT
+            END
+         NEXT I
+      END ELSE
+         CAP.CODE = ""
+      END
+      IF VEH.TYPE = "320" THEN
+         VEH.GROUP = "0"
+      END ELSE
+         VEH.GROUP = OCONV(VEH.MODEL,"TMT.VEHDET;X;;":MTVD.VEH.GROUP)
+      END
+      GOSUB 1300
+      RETURN
+1210:*--- Verify Data for QUOTE
+      IF CAP.CODE = "" THEN
+         ECODE = "E002" ; EDESC = ""
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      IF YEAR.MADE = "" THEN
+         ECODE = "E003" ; EDESC = ""
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      CAR.YEAR = CUR.YY - YEAR.MADE + 1
+      CAR.YEAR = CAR.YEAR 'R%2'
+      QUOTE.YEAR.MADE = ""
+      QUOTE.MAX.SI = 0 ; QUOTE.MIN.SI = 0
+      READ MTVD.REC FROM MTVD.FL, VEH.MODEL THEN
+         QUOTE.YEAR.MADE = MTVD.REC<MTVD.YEAR.MADE>
+         LOCATE(YEAR.MADE,QUOTE.YEAR.MADE,1;VPOS) THEN
+            QUOTE.MIN.SI = MTVD.REC<MTVD.MIN.SI,VPOS>
+            QUOTE.MAX.SI = MTVD.REC<MTVD.MAX.SI,VPOS>
+         END
+      END ELSE
+         ECODE = "E004" ; EDESC=VEH.MODEL
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      IF VEH.TYPE = "320" THEN
+         VEH.GROUP = "0"
+      END ELSE
+         VEH.GROUP = OCONV(VEH.MODEL,"TMT.VEHDET;X;;":MTVD.VEH.GROUP)
+      END
+      IF MIN.SI GT MAX.SI THEN
+         ECODE = "E010" ; EDESC = ""
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      IF MIN.SI GT QUOTE.MAX.SI THEN
+         ECODE = "E005" ; EDESC= OCONV(MIN.SI,"MR2,"):">":OCONV(QUOTE.MAX.SI,"MR2,")
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      LOCATE(VEH.TYPE,VEH.TYPE.PARAM,1;POS1) ELSE
+         ECODE = "E006" ; EDESC=VEH.TYPE
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+      FOR I = 1 TO CAMPAIGN.CNT
+         IF CAMPAIGN.CODE<I> # "" THEN
+            IF CAMPAIGN.CODE<I>[1,1] = "1" THEN
+               CHK.CAMP = CAMPAIGN.CODE<I>[1,5]
+            END ELSE
+               CHK.CAMP = CAMPAIGN.CODE<I>
+            END
+            LOCATE(CHK.CAMP,ALLOW.CAMPAIGN,1;POS2) ELSE
+               ECODE = "E007" ; EDESC=CAMPAIGN.CODE<I>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               GOSUB 3010 ; EXIT
+            END
+            IF OCONV(CAMPAIGN.CODE<I>,"TCAMPAIGN.MAST;X;;0") = "" THEN
+               ECODE = "E007" ; EDESC=CAMPAIGN.CODE<I>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               GOSUB 3010 ; EXIT
+            END
+         END
+      NEXT I
+      IF ERR.REC # "" THEN RETURN
+*      IF PLATE.TYPE = "B" THEN
+*         IF VEH.NBR = "" THEN
+*            ECODE = "E008" ; EDESC = ""
+*            ERR.REC<-1> = ECODE:"*":EDESC
+*            GOSUB 3010 ; RETURN
+*         END
+*      END
+      RETURN
+1220:*--- Verify Data for VERIFY
+      IF VOL.EDATE LT DATE()+1 THEN
+         ECODE = "E022" ; EDESC = ""
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3020 ; RETURN
+      END
+      IF (COMP.IND = "1") OR (CAMPAIGN.CODE = "COMP") THEN
+         IF COMP.EDATE LT DATE()+1 THEN
+            ECODE = "E023" ; EDESC = ""
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; RETURN
+         END
+      END
+*--- Verify & Check Black List
+      INREC="" ; OUTREC=""
+      INREC<1> = INSURED.ID
+      INREC<2> = INSURED.NAME
+      INREC<3> = VEH.NBR
+      INREC<4> = CHASSIS.NBR
+      INREC<5> = ""
+      CALL SUBVERIFYBLACKLIST(INREC,OUTREC)
+      OUT.CNT = DCOUNT(OUTREC,AM$)
+      FOR I = 1 TO OUT.CNT
+         IF OUTREC<I> = "1" THEN
+            ECODE = "E011" ; EDESC = ""
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; EXIT
+         END
+      NEXT I
+      IF ERR.REC # "" THEN RETURN
+      SEL.CMD2="" ; LIST2="" ; RECCNT2=0
+      SEL.CMD2 = \SELECT MT.POLICY WITH REF.NBR = "\:REF.NBR:\"\
+      EXECUTE SEL.CMD2 RTNLIST LIST2 RETURNING RECCNT2
+      IF RECCNT2+0 GT 0 THEN
+         ECODE = "E012" ; EDESC = REF.NBR
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3020 ; RETURN
+      END
+      IF ERR.REC # "" THEN RETURN
+*--- Check Duplicate record
+      CHK.DUP.ATTR = 1 ; POL.FL = MTPH.FL
+      OLD.POL.NBR = ""
+      FOR I = 1 TO 2
+         CHK.EDATE = VOL.EDATE ; CHK.XDATE = VOL.XDATE
+         CHK.DUP.VEH = "F"
+         XREF.ID = CHASSIS.NBR
+         XREF.FL = MTXC.FL ; DUP.ECODE = "E013" ; GOSUB 1220.1
+         IF ERR.REC # "" THEN
+            GOSUB 3020 ; RETURN
+         END
+         XREF.ID = VEH.NBR
+         CHK.DUP.VEH = "T"
+         XREF.FL = MTXV.FL ; DUP.ECODE = "E014" ; GOSUB 1220.1
+         IF ERR.REC # "" THEN
+            GOSUB 3020 ; RETURN
+         END
+         CHK.DUP.ATTR = 2 ; POL.FL = MTAP.FL
+      NEXT I
+      IF COMP.IND = "1" THEN
+         CHK.EDATE = COMP.EDATE ; CHK.XDATE = COMP.XDATE
+         CHK.DUP.ATTR = 3 ; POL.FL = MTPH.FL
+         XREF.ID = CHASSIS.NBR
+         CHK.DUP.VEH = "F"
+         XREF.FL = MTXC.FL ; DUP.ECODE = "E013" ; GOSUB 1220.1
+         IF ERR.REC # "" THEN
+            GOSUB 3020 ; RETURN
+         END
+         XREF.ID = VEH.NBR
+         CHK.DUP.VEH = "T"
+         XREF.FL = MTXV.FL ; DUP.ECODE = "E014" ; GOSUB 1220.1
+         IF ERR.REC # "" THEN
+            GOSUB 3020 ; RETURN
+         END
+      END
+      RETURN
+1220.1:*--- Loop for all Policy / Appl / Comp
+      XREF.ID = CHANGE(XREF.ID," ","")
+      READ XREF.REC FROM XREF.FL, XREF.ID ELSE RETURN
+      M.IDX6 = DCOUNT(XREF.REC<CHK.DUP.ATTR>,VM$)
+      FOR IDX6 = M.IDX6 TO 1 STEP -1
+         READ CHK.REC FROM POL.FL, XREF.REC<CHK.DUP.ATTR,IDX6> ELSE CONTINUE
+         BEGIN CASE
+            CASE CHK.REC<MTPL.STATUS> = "C" ; CONTINUE
+            CASE CHK.REC<MTPL.REJECT.CODE> # "" ; CONTINUE
+         END CASE
+         IF CHK.DUP.VEH = "T" THEN
+            LOCATE(VEH.TYPE,MOTORCYCLE,1;VPOS1) THEN
+               LOCATE(CHK.REC<MTPL.VEH.TYPE>,MOTORCYCLE,1;VPOS2) ELSE CONTINUE
+            END ELSE
+               LOCATE(CHK.REC<MTPL.VEH.TYPE>,MOTORCYCLE,1;VPOS2) THEN CONTINUE
+            END
+         END
+         IF CHK.DUP.ATTR = 1 THEN
+            IF CHK.EDATE EQ CHK.REC<MTPL.XDATE> THEN
+               CON.POL = "T"
+            END
+         END
+         IF OCONV(XREF.REC<CHK.DUP.ATTR,IDX6>,"TMTPU.TRAN;X;;0") # "" THEN
+            GOSUB 1420
+            IF VER.ACT.IND = "ACT" THEN
+               ECODE = DUP.ECODE ; EDESC = XREF.REC<CHK.DUP.ATTR,IDX6>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               EXIT
+            END
+         END
+         IF OCONV(XREF.REC<CHK.DUP.ATTR,IDX6>,"TMTPU.TRAN;X;;0") = "" THEN
+            IF CHK.EDATE GE CHK.REC<MTPL.XDATE> THEN CONTINUE
+            IF CHK.EDATE GT CHK.REC<MTPL.EDATE> AND CHK.EDATE LT CHK.REC<MTPL.XDATE> THEN
+               ECODE = DUP.ECODE ; EDESC = XREF.REC<CHK.DUP.ATTR,IDX6>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               EXIT
+            END
+            IF CHK.XDATE GT CHK.REC<MTPL.EDATE> AND CHK.XDATE LT CHK.REC<MTPL.XDATE> THEN
+               ECODE = DUP.ECODE ; EDESC = XREF.REC<CHK.DUP.ATTR,IDX6>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               EXIT
+            END
+            IF CHK.REC<MTPL.EDATE> EQ CHK.EDATE AND CHK.REC<MTPL.XDATE> EQ CHK.XDATE THEN
+               ECODE = DUP.ECODE ; EDESC = XREF.REC<CHK.DUP.ATTR,IDX6>
+               ERR.REC<-1> = ECODE:"*":EDESC
+               EXIT
+            END
+         END
+      NEXT IDX6
+      IF ERR.REC # "" THEN
+         IF CHK.DUP.ATTR = "2" THEN
+            IF CHK.REC<MTPL.NOTIFY.NBR> = "" THEN
+               ECODE = "" ; EDESC = "" ; ERR.REC = ""
+               IF TRAN.TYPE = "Confirm" THEN
+                  CHK.REC<MTPL.REJECT.CODE> = "06"
+                  CHK.REC<MTPL.REJECT.REASON> = "AUTO REJECTED"
+                  CHK.REC<MTPL.REJECT.USERID> = "MSP"
+                  CHK.REC<MTPL.REJECT.DATE> = CDATE$
+                  CHK.REC<MTPL.COMP.POL.NBR> = ""
+                  CHK.REC<MTPL.STATUS> = "C"
+                  OLD.POL.NBR = CHK.REC<MTPL.REP.POL.NBR>
+                  WRITE CHK.REC ON POL.FL, XREF.REC<CHK.DUP.ATTR,IDX6>
+*
+                  IF IDX6 = 1 THEN
+                     REJ.APPL.NBR = XREF.REC<CHK.DUP.ATTR,IDX6>
+                  END ELSE
+                     REJ.APPL.NBR = VM$:XREF.REC<CHK.DUP.ATTR,IDX6>
+                  END
+*-Clear Chassis nbr
+                  REJ.ID = CHASSIS.NBR ; REJ.FL = MTXC.FL
+                  READ REJ.REC FROM REJ.FL, REJ.ID ELSE RETURN
+                  REJ.REC<CHK.DUP.ATTR> = CHANGE(REJ.REC<CHK.DUP.ATTR>,REJ.APPL.NBR,"")
+                  WRITE REJ.REC ON REJ.FL, REJ.ID
+*-Clear Vehicle nbr
+                  REJ.ID = VEH.NBR ; REJ.FL = MTXV.FL
+                  READ REJ.REC FROM REJ.FL, REJ.ID ELSE RETURN
+                  REJ.REC<CHK.DUP.ATTR> = CHANGE(REJ.REC<CHK.DUP.ATTR>,REJ.APPL.NBR,"")
+                  WRITE REJ.REC ON REJ.FL, REJ.ID
+               END
+            END
+         END
+      END
+      RETURN
+1230:*--- Verify Data for GENPOLICY
+      IF ERR.REC # "" THEN RETURN
+*--- Verify Campign
+      PLAN.REC = "" ; OUTREC = ""
+      PLAN.REC<211> = VEH.TYPE
+      PLAN.REC<216> = VEH.GROUP
+      PLAN.REC<78> = POL.TYPE
+      PLAN.REC<102> = ""
+      PLAN.REC<22> = DATE()
+      PLAN.REC<373> = SUM.INS
+      PLAN.REC<161> = AGENT.CODE
+      PLAN.REC<214> = VEH.MODEL
+      PLAN.REC<20> = DATE()
+      PLAN.REC<231> = CAP.CODE
+      PLAN.REC<223> = YEAR.MADE
+      PLAN.REC<228> = FIELD(CAP.CODE,"-",1)
+      PLAN.REC<229> = DISP
+      PLAN.REC<224> = SEAT
+      PLAN.REC<230> = WEIGHT
+      PLAN.REC<125> = CAMPAIGN.CODE
+      CALL VALIDATECAMPAIGN(PLAN.REC,OUTREC)
+      IF OUTREC<1> = "N" THEN
+         ECODE = "E007" ; EDESC=CAMPAIGN.CODE
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3020 ; RETURN
+      END
+      OUTREC=""
+      CALL GETMTTEMPLATEID(PLAN.REC,OUTREC)
+      ATEM.ID = OUTREC<1>
+      ATEM.TOTDUE="" ; ATEM.VEHTYPE="" ; ATEM.GROSS=""
+      READ ATEM.REC FROM MTTM.FL, ATEM.ID THEN
+*- Clear seat/disp/gvw
+         ATEM.REC<22> = ""
+         ATEM.REC<224> = ""
+         ATEM.REC<229> = ""
+         ATEM.REC<230> = ""
+*
+         MTPL.REC = ATEM.REC
+         ATEM.TOTDUE = ATEM.REC<66>
+         ATEM.VEHTYPE = ATEM.REC<211>
+         ATEM.GROSS = ATEM.REC<59>
+*-- 2+ and 3+ keep SUM.INS2 from SUM.INS, Clear SUM.INS
+         IF MTPL.REC<78> = "02" OR MTPL.REC<78> = "03" THEN
+            IF MTPL.REC<125> # "" THEN
+               WRK.REC<277> = MTPL.REC<277>
+               WRK.REC<51> = MTPL.REC<51>
+            END
+         END
+         IF ATEM.VEHTYPE # VEH.TYPE THEN
+            ECODE = "E015" ; EDESC = ""
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; RETURN
+         END
+         BEGIN CASE
+            CASE VEH.TYPE = "110"
+               IF DISP+0 = 0 THEN
+                  ECODE = "E017" ; EDESC = ""
+                  ERR.REC<-1> = ECODE:"*":EDESC
+                  GOSUB 3020 ; RETURN
+               END
+            CASE VEH.TYPE = "210"
+               IF SEAT+0 = 0 THEN
+                  ECODE = "E018" ; EDESC = ""
+                  ERR.REC<-1> = ECODE:"*":EDESC
+                  GOSUB 3020 ; RETURN
+               END
+            CASE VEH.TYPE = "320"
+               IF WEIGHT+0 = 0 THEN
+                  ECODE = "E019" ; EDESC = ""
+                  ERR.REC<-1> = ECODE:"*":EDESC
+                  GOSUB 3020 ; RETURN
+               END
+         END CASE
+         IF VEH.TYPE = "320" THEN
+            IF (WEIGHT GT 3000) AND (WEIGHT LE 4000) THEN
+               ECODE = "E016" ; EDESC = ""
+               ERR.REC<-1> = ECODE:"*":EDESC
+               GOSUB 3020 ; RETURN
+            END
+         END
+         IF ATEM.GROSS # VOL.GROSS.PRE THEN
+            ECODE = "E020" ; EDESC = ATEM.GROSS 'L26,'
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; RETURN
+         END
+         IF ABS(ATEM.TOTDUE - VOL.TOT.PRE) GT 200 THEN
+            ECODE = "E021" ; EDESC = ATEM.TOTDUE 'L26,'
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; RETURN
+         END
+      END ELSE
+         ECODE = "E009" ; EDESC = ATEM.ID
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3020 ; RETURN
+      END
+      RETURN
+1240:*"---- Verify Comp
+      RETURN
+1300:*--- Format Vehicle NBR
+      VEH.NBR = CHANGE(VEH.NBR," ","")
+      IF PLATE.TYPE = "R" THEN
+         VEH.NBR = ""
+         VEH.NBR1 = RED.PLATE
+         VEH.NBR2 = ""
+         VEH.PROV = ""
+      END ELSE
+         VEH.NBR1 = "" ; VEH.NBR2 = "" ; TMP.NBR2 = ""
+         VEH.PROV = "" ; TMP.PROV = "" ; VEH.NBR12 = ""
+*
+         M.IDX1 = LEN(VEH.NBR)
+         FOR IDX1 = M.IDX1 TO 1 STEP -1
+            BEGIN CASE
+               CASE VEH.NBR[IDX1,1] MATCHES "0N" ; 
+                  EXIT
+               CASE 1 ; 
+                  TMP.PROV<-1> = VEH.NBR[IDX1,1]
+            END CASE
+         NEXT IDX1
+*
+         VEH.NBR12 = VEH.NBR[1,IDX1]
+         M.IDX2 = LEN(VEH.NBR12)
+         FOR IDX2 = M.IDX2 TO 1 STEP -1
+            BEGIN CASE
+               CASE VEH.NBR[IDX2,1] MATCHES "0N" ; 
+                  TMP.NBR2<-1> = VEH.NBR[IDX2,1]
+               CASE 1 ; EXIT
+            END CASE
+         NEXT IDX2
+*
+         VEH.NBR1 = VEH.NBR[1,IDX2]
+         CONVERT "-" TO "" IN VEH.NBR1
+         M.IDX3 = LEN(VEH.NBR1)
+         BEGIN CASE
+            CASE M.IDX3 = 1 ; 
+               VEH.NBR1 :="-"
+            CASE M.IDX3 = 2 ; 
+               IF VEH.NBR1[1,1] MATCHES "1N" THEN
+                  VEH.NBR1 :="-"
+               END
+            CASE 1 ; 
+         END CASE
+         M.IDX4 = DCOUNT(TMP.NBR2,AM$)
+         FOR IDX4 = M.IDX4 TO 1 STEP -1
+            VEH.NBR2 := TMP.NBR2<IDX4>
+         NEXT IDX4
+         M.IDX5 = DCOUNT(TMP.PROV,AM$)
+         FOR IDX5 = M.IDX5 TO 1 STEP -1
+            VEH.PROV := TMP.PROV<IDX5>
+         NEXT IDX5
+         VEH.NBR = VEH.NBR1:VEH.NBR2:VEH.PROV
+      END
+      RETURN
+1420:*--- PPU VERIFY ACTIVE
+      VER.ACT.IND = "NON"
+      INREC = "" ; OUTREC = ""
+      INREC<1> = XREF.REC<CHK.DUP.ATTR,IDX6>
+      INREC<2> = CHK.EDATE
+      BEGIN CASE
+         CASE VOL.EDATE EQ DATE()
+            INREC<3> = TIME()
+         CASE VOL.EDATE LT DATE()
+            INREC<3> = 59400
+         CASE VOL.EDATE GT DATE()
+            INREC<3> = 60
+         CASE 1 ; 
+      END CASE
+      INREC<4> = CHK.XDATE
+      INREC<5> = 59400
+      INREC<6> = "VERIFY"
+      CALL TVI.MTPU.VERIFYACTIVE(INREC,OUTREC)
+      IF OUTREC<1> = "N" THEN VER.ACT.IND = "NON"
+      IF OUTREC<1> = "Y" THEN VER.ACT.IND = "ACT"
+      RETURN
+1700:*--- XREF files
+      IF TRIM(XREF.ID) = "" THEN RETURN
+      READ XREF.REC FROM XREF.FL, XREF.ID ELSE XREF.REC=""
+      LOCATE(MTAP.ID,XREF.REC,2;XPOS2) ELSE
+         XREF.REC = INSERT(XREF.REC,2,XPOS2;MTAP.ID)
+      END
+      WRITE XREF.REC ON XREF.FL, XREF.ID
+      RETURN
+2000:*--- Main Processing
+      WS.DATA = CHANGE(WRK.REC,AM$,"|")
+      GOSUB 1000                         ; * Update Audit
+      BEGIN CASE
+         CASE TRAN.TYPE = "QUOTE"
+            GOSUB 1110                   ; * Mapping data
+            GOSUB 1210                   ; * Verify data
+            GOSUB 2100                   ; * Store & Response
+         CASE TRAN.TYPE = "VERIFY"
+            GOSUB 1120                   ; * Mapping data
+            GOSUB 1220                   ; * Verify data
+            GOSUB 2200                   ; * Store & Response
+         CASE TRAN.TYPE = "GENPOLICY"
+            GOSUB 1130                   ; * Mapping data
+            GOSUB 1220                   ; * Verify data
+            IF COMP.IND="1" AND CAMPAIGN.CODE = "COMP" THEN
+               GOSUB 1240
+            END ELSE
+               GOSUB 1230                   ; * Additional Verify
+            END
+            GOSUB 2300                   ; * Store & Gen Policy
+            GOSUB 4600                   ; * Print Policy
+            GOSUB 5000                   ; * Response
+         CASE 1 ; 
+            ECODE = "E001" ; EDESC = ""
+            ERR.REC<-1> = ECODE:"*":EDESC ; GOSUB 3010
+      END CASE
+      IF (GENPDF.IND = "T") AND (DEL.CODE[1,1]="1") THEN
+         MAX.ROUND=PVMSP.REC<20>
+         ROUND.CNT=0
+230:*---
+         IF ROUND.CNT LT MAX.ROUND THEN
+            PRN.OUTPUT = OCONV(PVSP.ID,"TPV.SPOOLLOG;X;;16")
+            IF PRN.OUTPUT="" THEN
+               ROUND.CNT+=1
+               SLEEP 1
+               GOTO 230
+            END
+            PRN.OUTPUT = CHANGE(PRN.OUTPUT,".las","_1.PDF")
+            PRN.OUTPUT = CHANGE(PRN.OUTPUT,".LAS","_1.PDF")
+            PDF.REC=""
+*
+            PDF.REC = CHANGE(PRN.OUTPUT," ",AM$)
+            PDF.REC = CHANGE(PDF.REC,VM$,AM$)
+            PDF.REC = CHANGE(PDF.REC,";",AM$)
+            GOSUB 2200.3
+            GOSUB 2200.4
+            IF (DEL.CODE="1C") OR (DEL.CODE="1D") THEN
+               GOSUB 2200.5
+            END
+         END
+      END
+      WS.DATA = CHANGE(OUTREC,AM$,"|")
+      GOSUB 1000                         ; * Update Audit
+      RETURN
+2100:*--- Store & Response
+      IF ERR.REC # "" THEN RETURN
+      PLAN.ARY = ""
+      FOUND.ATEM = 0
+      GOSUB 2110                         ; * Collect Policy Template
+      IF FOUND.ATEM = 0 THEN
+         ECODE = "E009" ; EDESC = ""
+         ERR.REC<-1> = ECODE:"*":EDESC
+         GOSUB 3010 ; RETURN
+      END
+*
+      OUTREC = ""
+      OUTREC<-1> = \{\
+      OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+      OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+      OUTREC<-1> = \"errorDesc":"",\
+      OUTREC<-1> = \"campaignDetails":[\
+      M.IDX1 = DCOUNT(PLAN.ARY<1>,VM$)
+      FOR IDX1 = 1 TO M.IDX1
+         ATEM.ID = PLAN.ARY<1,IDX1>
+         GOSUB 2130
+         OUTREC<-1> = \{\
+         OUTREC<-1> = \"PackageId":"\:ATEM.ID:\",\
+         OUTREC<-1> = \"campaignCode":"\:RES.CAMP.CODE:\",\
+         OUTREC<-1> = \"campaignDesc":"\:RES.CAMP.DESC:\",\
+         OUTREC<-1> = \"policyType":"\:RES.POL.TYPE:\",\
+         OUTREC<-1> = \"sumInsured":"\:SUM.INS:\",\
+         OUTREC<-1> = \"sumInsuredType5":"\:SUM.INS2:\",\
+         OUTREC<-1> = \"grossPremium":"\:GROSS.PREM:\",\
+         OUTREC<-1> = \"stampAmount":"\:STAMP:\",\
+         OUTREC<-1> = \"vatAmount":"\:VAT:\",\
+         OUTREC<-1> = \"totalPremium":"\:TOTAL.DUE:\",\
+         OUTREC<-1> = \"garageType":"\:TVI.GARAGE:\",\
+         OUTREC<-1> = \"tpbiPerPerson":"\:TPBI.PER:\",\
+         OUTREC<-1> = \"tpbiPerAccident":"\:TPBI.ACC:\",\
+         OUTREC<-1> = \"tppdPerAccident":"\:TPD.ACC:\",\
+         OUTREC<-1> = \"paSumInsuredDriver":"\:PA.SUM.INS1:\",\
+         OUTREC<-1> = \"paSumInsuredPassenger":"\:PA.SUM.INS2:\",\
+         OUTREC<-1> = \"paNbrDriver":"\:PA.NBR1:\",\
+         OUTREC<-1> = \"paNbrPassenger":"\:PA.NBR2:\",\
+         OUTREC<-1> = \"medSumInsuredDriver":"\:MED.SUM.INS1:\",\
+         OUTREC<-1> = \"medSumInsuredPassenger":"\:MED.SUM.INS2:\",\
+         OUTREC<-1> = \"medNbrDriver":"\:MED.NBR1:\",\
+         OUTREC<-1> = \"medNbrPassenger":"\:MED.NBR2:\",\
+         OUTREC<-1> = \"bailbondSumInsured":"\:BOND:\",\
+         OUTREC<-1> = \"deductibleOwn":"\:DEDUCT.OWN:\",\
+         OUTREC<-1> = \"deductibleTP":"\:DEDUCT.TP:\",\
+         OUTREC<-1> = \"coverDay":"\:COVER.DAY:\"\
+         OUTREC<-1> = \}\
+         IF IDX1 # M.IDX1 THEN
+            OUTREC<-1> = \,\
+         END
+      NEXT IDX1
+      OUTREC<-1> = \]}\
+      RETURN
+2110:*--- Select Policy Template
+      LIST = "" ; LIST1 = "" ; LIST2 = ""
+      RECCNT1 = 0 ; RECCNT2 = 0
+      SEL.PLAN = "" ; COND1 = ""
+      COND2 = "" ; COND3 = "" ; COND4 = "" ; COND5 = ""
+      SEL.LAST = "[":VER.SEQ
+      POLTYPE.CNT = DCOUNT(REQ.POL.TYPE,AM$)
+      FOR IDX6 = 1 TO POLTYPE.CNT
+         POL.TYPE = REQ.POL.TYPE<IDX6>
+         IF CAMPAIGN.CODE # "" THEN
+            FOR IDX7 = 1 TO CAMPAIGN.CNT
+               CAMP.POLTYPE = OCONV(CAMPAIGN.CODE<IDX7>,"TCAMPAIGN.MAST;X;;":CAMP.POL.TYPE)
+               IF POL.TYPE # CAMP.POLTYPE THEN CONTINUE
+               SEL.MIN.SI = MIN.SI/100
+               SEL.MAX.SI = MAX.SI/100
+               IF POL.TYPE = "01" THEN
+                  SEL.FIRST = CAMPAIGN.CODE<IDX7>:"_":VEH.TYPE:"_":CAP.CODE:"_":VEH.GROUP:"_":CAR.YEAR:"]"
+                  COND1 = \ AND WITH SUM.INS >= "\:SEL.MIN.SI:\"\
+                  COND2 = \ AND WITH SUM.INS <= "\:SEL.MAX.SI:\"\
+               END ELSE
+                  SEL.FIRST = CAMPAIGN.CODE<IDX7>:"_":VEH.TYPE:"_":CAP.CODE:"_0_":CAR.YEAR:"]"
+                  COND1 = \ AND WITH SUM.INS2 >= "\:SEL.MIN.SI:\"\
+                  COND2 = \ AND WITH SUM.INS2 <= "\:SEL.MAX.SI:\"\
+               END
+               COND3 = \ AND WITH @ID = "\:SEL.LAST:\"\
+               COND4 = \ BY @ID\
+               SEL.PLAN = \SELECT MT.POLICY.TEMPLATE.WS WITH @ID = "\:SEL.FIRST:\"\
+               SEL.PLAN:=COND1:COND2:COND3:COND4
+               EXECUTE SEL.PLAN RTNLIST LIST1 RETURNING RECCNT1
+               IF RECCNT1+0 = 0 THEN
+                  CONTINUE
+               END
+               LIST = LIST1
+               OLD.HEAD.CHK = ""
+               GOSUB 2120
+            NEXT IDX7
+         END ELSE
+            ALLOW.CAMP.CNT = DCOUNT(ALLOW.CAMPAIGN,VM$)
+            SEL.FIRST = ""
+            FOR I = 1 TO ALLOW.CAMP.CNT
+               IF POL.TYPE # CAMP.POLTYPE<1,I> THEN CONTINUE
+               IF CAMP.WC<1,I> = "1" THEN
+                  SEL.FIRST<-1> = ALLOW.CAMPAIGN<1,I>:"]"
+               END ELSE
+                  SEL.FIRST<-1> = ALLOW.CAMPAIGN<1,I>:"_]"
+               END
+            NEXT I
+            SEL.FIRST = CHANGE(SEL.FIRST,AM$,'" "')
+            SEL.PLAN = \SELECT MT.POLICY.TEMPLATE.WS WITH @ID = "\:SEL.FIRST:\"\
+            SEL.MIN.SI = MIN.SI/100
+            SEL.MAX.SI = MAX.SI/100
+            IF POL.TYPE = "01" THEN
+               SEL.BODY = "[":VEH.TYPE:"_":CAP.CODE:"_":VEH.GROUP:"_":CAR.YEAR:"]"
+               COND2 = \ AND WITH SUM.INS >= "\:SEL.MIN.SI:\"\
+               COND3 = \ AND WITH SUM.INS <= "\:SEL.MAX.SI:\"\
+            END ELSE
+               SEL.BODY = "[":VEH.TYPE:"_":CAP.CODE:"_0_":CAR.YEAR:"]"
+               COND2 = \ AND WITH SUM.INS2 >= "\:SEL.MIN.SI:\"\
+               COND3 = \ AND WITH SUM.INS2 <= "\:SEL.MAX.SI:\"\
+            END
+            COND1 = \ AND WITH @ID = "\:SEL.BODY:\"\
+            COND4 = \ AND WITH @ID = "\:SEL.LAST:\"\
+            COND5 = \ BY @ID\
+            SEL.PLAN:=COND1:COND2:COND3:COND4:COND5
+            EXECUTE SEL.PLAN RTNLIST LIST2 RETURNING RECCNT2
+*            CAMP.OTHE = CHANGE(SEL.CAMPAIGN,"]","OTHE")
+            IF RECCNT2+0 = 0 THEN
+               CONTINUE
+            END
+            LIST = LIST2
+*--- not yet support campaign other
+            OLD.HEAD.CHK = ""
+            GOSUB 2120
+         END
+      NEXT IDX6
+      RETURN
+2120:*-- Validate & Store Policy Template
+      READNEXT APTM.ID FROM LIST ELSE RETURN
+      NEW.HEAD.CHK = FIELD(APTM.ID,"_",1)
+      IF NEW.HEAD.CHK # OLD.HEAD.CHK THEN
+         PLAN.REC = "" ; OUTREC = ""
+         PLAN.REC<211> = VEH.TYPE
+         PLAN.REC<216> = VEH.GROUP
+         PLAN.REC<78> = POL.TYPE
+         PLAN.REC<102> = ""
+         PLAN.REC<22> = DATE()
+         PLAN.REC<373> = ""
+         PLAN.REC<161> = AGENT.CODE
+         PLAN.REC<214> = VEH.MODEL
+         PLAN.REC<20> = DATE()
+         PLAN.REC<231> = CAP.CODE
+         PLAN.REC<223> = YEAR.MADE
+         PLAN.REC<228> = FIELD(CAP.CODE,"-",1)
+         PLAN.REC<229> = DISP
+         PLAN.REC<224> = SEAT
+         PLAN.REC<230> = WEIGHT
+         PLAN.REC<125> = FIELD(APTM.ID,"_",1)
+         OLD.HEAD.CHK = FIELD(APTM.ID,"_",1)
+         CALL VALIDATECAMPAIGN(PLAN.REC,OUTREC)
+         IF OUTREC<1> = "N" THEN
+            GOTO 2120
+         END
+      END ELSE
+         IF OUTREC<1> = "N" THEN
+            GOTO 2120
+         END
+      END
+      SUM.INS = OCONV(APTM.ID,"TMT.POLICY.TEMPLATE.WS;X;;":MTPL.SUM.INS)
+      SUM.INS2 = OCONV(APTM.ID,"TMT.POLICY.TEMPLATE.WS;X;;":MTPL.SUM.INS2)
+      IF SUM.INS2 GT SUM.INS THEN SUM.INS = SUM.INS2
+      RANGE.ST = MIN.SI
+      RANGE.EN = MAX.SI
+      IF MIN.SI LT QUOTE.MIN.SI THEN RANGE.ST = QUOTE.MIN.SI
+      IF MAX.SI GT QUOTE.MAX.SI THEN RANGE.EN = QUOTE.MAX.SI
+      IF (SUM.INS GE RANGE.ST) AND (SUM.INS LE RANGE.EN) ELSE
+         GOTO 2120
+      END
+      ATEM.POLTYPE = OCONV(APTM.ID,"TMT.POLICY.TEMPLATE.WS;X;;":MTPL.POLICY.TYPE)
+      IF POL.TYPE # ATEM.POLTYPE THEN
+         GOTO 2120
+      END
+      FOUND.ATEM = 1
+      SORT.KEY1 = APTM.ID
+      LOCATE(SORT.KEY1,PLAN.ARY,1;XPOS1) ELSE
+         PLAN.ARY = INSERT(PLAN.ARY,1,XPOS1;SORT.KEY1)
+      END
+      GOTO 2120
+      RETURN
+2130:*--- Get Additional Data to Response
+      READ ATEM.REC FROM MTTM.FL, ATEM.ID ELSE ATEM.REC = ""
+      RES.CAMP.CODE = FIELD(ATEM.ID,"_",1)
+      RES.CAMP.DESC = OCONV(RES.CAMP.CODE,"TCAMPAIGN.MAST;X;;":CAMP.DESC)
+      RES.POL.TYPE = OCONV(RES.CAMP.CODE,"TCAMPAIGN.MAST;X;;":CAMP.POL.TYPE)
+      TOTAL.DUE = OCONV(ATEM.REC<MTPL.TOTAL.DUE>,"MR2")
+      GROSS.PREM = OCONV(ATEM.REC<MTPL.GROSS.PREM>,"MR2")
+      STAMP = OCONV(ATEM.REC<MTPL.STAMP.AMT>,"MR2")
+      VAT = OCONV(ATEM.REC<MTPL.VAT.AMT>,"MR2")
+      GARAGE.GRADE = ATEM.REC<MTPL.GARAGE.GRADE>
+      TVI.GARAGE = OCONV(GARAGE.GRADE,"TGARAGE.GRADE;X;;1")
+      TPBI.PER = OCONV(ATEM.REC<MTPL.TPBI.PER>,"MR2")
+      TPBI.ACC = OCONV(ATEM.REC<MTPL.TPBI.ACC>,"MR2")
+      TPD.ACC = OCONV(ATEM.REC<MTPL.TPD.ACC>,"MR2")
+      PA.SUM.INS1 = OCONV(ATEM.REC<MTPL.PA.SUM.INS,1>,"MR2")
+      PA.SUM.INS2 = OCONV(ATEM.REC<MTPL.PA.SUM.INS,2>,"MR2")
+      PA.NBR1 = ATEM.REC<MTPL.PA.NBR,1>
+      PA.NBR2 = ATEM.REC<MTPL.PA.NBR,2>
+      MED.SUM.INS1 = OCONV(ATEM.REC<MTPL.MED.SUM.INS,1>,"MR2")
+      MED.SUM.INS2 = OCONV(ATEM.REC<MTPL.MED.SUM.INS,2>,"MR2")
+      MED.NBR1 = ATEM.REC<MTPL.MED.NBR,1>
+      MED.NBR2 = ATEM.REC<MTPL.MED.NBR,2>
+      BOND = OCONV(ATEM.REC<MTPL.BOND.SUM.INS>,"MR2")
+      SUM.INS = OCONV(ATEM.REC<MTPL.SUM.INS>,"MR2")
+      SUM.INS2 = OCONV(ATEM.REC<MTPL.SUM.INS2>,"MR2")
+      DEDUCT.OWN = OCONV(ATEM.REC<MTPL.DEDUCT.OWN.TP,1>,"MR2")
+      DEDUCT.TP = OCONV(ATEM.REC<MTPL.DEDUCT.OWN.TP,2>,"MR2")
+      COVER.DAY = OCONV(RES.CAMP.CODE,"TCAMPAIGN.MAST;X;;":CAMP.COVER.DAYS)
+      IF COVER.DAY+0 = 0 THEN
+         COVER.DAY = "1 ปี"
+      END ELSE
+         COVER.DAY:=" วัน"
+      END
+      RETURN
+2200:*--- Store & Response
+      IF ERR.REC # "" THEN RETURN
+      RES.MSG = ""
+      OUTREC = ""
+      OUTREC<-1> = \{\
+      OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+      OUTREC<-1> = \"refNbr":"\:REF.NBR:\",\
+      OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+      OUTREC<-1> = \"errorDesc":"\:RES.MSG:\"\
+      OUTREC<-1> = \}\
+      RETURN
+2200.3:*--- Sorting Document
+      ORDER.PDF = PVMSP.REC<21>
+      CONVERT VM$ TO AM$ IN ORDER.PDF
+      M.IDX1 = DCOUNT(PDF.REC,AM$)
+      M.IDX2 = DCOUNT(ORDER.PDF,AM$)
+      SORT.ARY="" ; OTH.ARY="" ; PDF.TYPE=""
+      FOR I = 1 TO M.IDX1
+         PDF.TYPE = FIELD(PDF.REC<I>,"_",3)
+         FOR J = 1 TO M.IDX2
+            PDF1 = FIELD(ORDER.PDF<J>,",",1)
+            PDF2 = PDF.TYPE[1,LEN(PDF1)]
+            IF PDF1 = PDF2 THEN
+               SPE.COND = FIELD(ORDER.PDF<J>,",",2)
+               IF SPE.COND = "" THEN
+                  SORT.ARY<J> = PDF.REC<I>
+                  EXIT
+               END ELSE
+                  TMP.POL = FIELD(PDF.REC<I>,"_",1)
+                  TMP.CLASS.TYPE = TMP.POL[LEN(TMP.POL),1]
+                  IF SPE.COND = TMP.CLASS.TYPE THEN
+                     SORT.ARY<J> = PDF.REC<I>
+                     EXIT
+                  END ELSE
+                     CONTINUE
+                  END
+               END
+            END ELSE
+               IF J = M.IDX2 THEN
+                  OTH.ARY<-1> = PDF.REC<I>
+                  EXIT
+               END
+            END
+         NEXT J
+      NEXT I
+      PDF.REC = ""
+      M.IDX3 = DCOUNT(SORT.ARY,AM$)
+      FOR K = 1 TO M.IDX3
+         IF SORT.ARY<K> # "" THEN
+            PDF.REC<-1> = SORT.ARY<K>
+         END
+      NEXT K
+      IF OTH.ARY # "" THEN
+         PDF.REC:=AM$:OTH.ARY
+      END
+      RETURN
+2200.4:*--- Merge PDF
+      PDFMERGE.ID = RES.ID:".PDF"
+      OTXT1.ID = "PDFMERGELIST"
+      OTXT1.ID:= "_":RES.ID
+      OTXT1.ID:= "_":CUR.YY:CUR.MM:CUR.DD:CUR.TT:"_":RND(10000)
+      OPENSEQ "PDFMERGE",OTXT1.ID TO OTXT1.FL ELSE
+         CREATE OTXT1.FL ELSE NULL
+      END
+      WEOFSEQ OTXT1.FL
+      PDF.CNT = DCOUNT(PDF.REC,AM$)
+      FOR I = 1 TO PDF.CNT
+         M.OUTREC = ""
+         M.OUTREC<1> = PDF.REC<I>
+         WRITESEQ M.OUTREC ON OTXT1.FL ELSE NULL
+      NEXT I
+*      IF PU.IND = "T" THEN
+*         READ MTPU.REC FROM MTPU.FL, VOL.ID ELSE MTPU.REC = ""
+*         MTPU.REC<MTPUTR.POL.PRINT.URL> = HTTP.PATH:PDFMERGE.ID
+*         WRITE MTPU.REC ON MTPU.FL, VOL.ID
+*      END
+      CLOSESEQ OTXT1.FL
+      RETURN
+2200.5:*--- Send PDF
+      IF UPCASE(CAR.INSPECT)="Y" THEN RETURN
+      OTXT5.ID = "TVIMTONOFFPDF_":CUR.YY:CUR.MM:CUR.DD:"_":RES.ID
+      OPENSEQ "WEBSV",OTXT5.ID TO OTXT5.FL ELSE
+         CREATE OTXT5.FL ELSE NULL
+      END
+      WEOFSEQ OTXT5.FL
+*
+      IF (COMP.IND="1") AND (CAMPAIGN.CODE="COMP") THEN
+         RES.EDATE = COMP.EDATE
+      END ELSE
+         RES.EDATE = VOL.EDATE
+      END
+      RES.EDATE = OCONV(RES.EDATE,"DYMD/[4,2,2]")
+      RES.EDATE = CHANGE(RES.EDATE,"/","")
+      POL.PLAN.TYPE = "GENERAL"
+      RES.VEHNBR1 = VEH.NBR1
+      RES.VEHNBR2 = VEH.NBR2
+      RES.VEHNBR = TRIM(RES.VEHNBR1):TRIM(RES.VEHNBR2)
+      IF RES.VEHNBR = RED.PLATE THEN
+         RES.VEHPROV = ""
+      END ELSE
+         RES.VEHPROV = VEH.PROV
+         RES.VEHPROV = OCONV(RES.VEHPROV,"TMT.CHANGWAT;X;;1")
+      END
+      OUTREC1 = ""
+      OUTREC1<-1>=\{\
+      OUTREC1<-1>=\"policyNumber":"\:RES.ID:\",\
+      IF OLD.POL.NBR # "" THEN
+         OUTREC1<-1>=\"previousPolicyNumber":"\:OLD.POL.NBR:\",\
+      END ELSE
+         OUTREC1<-1>=\"previousPolicyNumber": null,\
+      END
+      OUTREC1<-1>=\"endorsementNumber": null,\
+      OUTREC1<-1>=\"identityId":"\:INSURED.ID:\",\
+      OUTREC1<-1>=\"policyDocumentUrl":"\:POL.URL:\",\
+      OUTREC1<-1>=\"policyEffectiveDate":"\:RES.EDATE:\",\
+      OUTREC1<-1>=\"policyDocumentType":"e-policy",\
+      OUTREC1<-1>=\"tranType": "ADD",\
+      OUTREC1<-1>=\"planType":"\:POL.PLAN.TYPE:\",\
+      OUTREC1<-1>=\"mobileNumber":"\:MOBILE.NO:\",\
+      OUTREC1<-1>=\"carLicenseNumber":"\:RES.VEHNBR:\",\
+      OUTREC1<-1>=\"carLicenseProvince":"\:RES.VEHPROV:\"\
+      OUTREC1<-1>=\}\
+      CONVERT AM$ TO "" IN OUTREC1
+      WEBHOOK.URL = OCONV("PARAM.MTPU","TPV.PARAM;X;;180")
+      OUTREC1 = "JASON":"$":WEBHOOK.URL:"$":PDFMERGE.ID:"$":OUTREC1
+      WRITESEQ OUTREC1 ON OTXT5.FL ELSE NULL
+      CLOSESEQ OTXT5.FL
+      RETURN
+2300:*--- Store & Gen Policy
+      IF ERR.REC # "" THEN RETURN
+      IF CAMPAIGN.CODE # "COMP" THEN
+         GOSUB 2310
+         IF UPCASE(CAR.INSPECT)="Y" THEN
+            GOSUB 2310.1
+         END ELSE
+            GOSUB 2310.2
+         END
+      END ELSE
+         GOSUB 2310.3                    ; *Default Data Comp
+         CALL GEN.MT.COMP(COMP.ID,COMP.REC,ERR.REC,OUTREC)
+         IF ERR.REC # "" THEN
+            EDESC=ERR.REC
+            ECODE = "E024"
+            ERR.REC=""
+            ERR.REC<-1> = ECODE:"*":EDESC
+            GOSUB 3020 ; RETURN
+         END
+      END
+      RETURN
+2310:*--- No Car Inspect Default Data
+      IF ERR.REC # "" THEN RETURN
+      MTPL.REC<MTPL.USERID> = "MSP"
+      MTPL.REC<MTPL.POST.USERID> = "MSP"
+      MTPL.REC<MTPL.ISSUE.OFF> = "00"
+      MTPL.REC<MTPL.REN.IND> = "1"
+      MTPL.REC<MTPL.AGENT.CODE> = AGENT.CODE
+      STAFF.PERF=PV.OCONV(AGENT.CODE,"TAGENT.MAST;X;;43")
+      MTPL.REC<MTPL.STAFF.PERF> = STAFF.PERF
+      MTPL.REC<MTPL.XDATE> = VOL.XDATE
+      MTPL.REC<MTPL.EDATE> = VOL.EDATE
+      MTPL.REC<MTPL.REF.NBR> = REF.NBR
+      MTPL.REC<MTPL.CAMPAIGN.CODE> = CAMPAIGN.CODE    
+*
+      MTPL.REC<MTPL.ID.NBR> = TRIM(INSURED.ID)
+      IF INSURED.ID MATCHES "0N" THEN
+         ID.TYPE = "ID01"
+      END ELSE
+         ID.TYPE = "ID04"
+      END
+      MTPL.REC<MTPL.CLIENT.BRANCH.NBR> = INSURED.BRANCH.NBR
+*
+      MTPL.REC<MTPL.TITLE> = INSURED.TITLE
+      MTPL.REC<MTPL.INSURED> = INSURED.NAME
+*
+      CNT.CODE = 0
+      IF POL.DISTRICT[1,2] MATCHES "0N" AND POL.DISTRICT[1,2] # "99" THEN CNT.CODE +=1
+      IF POL.DISTRICT[4,2] MATCHES "0N" AND POL.DISTRICT[4,2] # "99" THEN CNT.CODE +=1
+      IF POL.PROVINCE MATCHES "0N" AND POL.PROVINCE # "99" THEN CNT.CODE +=1
+      IF POL.POST.CODE MATCHES "0N" THEN CNT.CODE +=1
+      IF CNT.CODE = 4 THEN
+         MTPL.REC<MTPL.ADDRESS>=POL.ADDRESS
+         MTPL.REC<MTPL.AMPHOE>=POL.DISTRICT
+         MTPL.REC<MTPL.PROVINCE>=POL.PROVINCE
+         MTPL.REC<MTPL.RECP.POSTCODE>=POL.POST.CODE
+      END ELSE
+         MTPL.REC<MTPL.ADDRESS>=POL.ADDRESS
+         MTPL.REC<MTPL.AMPHOE>="99*99"
+         MTPL.REC<MTPL.PROVINCE>="99"
+      END
+      IF TRIM(MOBILE.NO) # "" THEN
+         MTPL.REC<MTPL.PEN.REMARKS> = "M":MOBILE.NO
+      END
+*
+      MTPL.REC<MTPL.DEL.CODE> = DEL.CODE
+      MTPL.REC<MTPL.YRMTH> = YRMTH
+      MTPL.REC<MTPL.STATUS> = "A"
+      MTPL.REC<MTPL.FORM.TYPE> = "V"
+      MTPL.REC<MTPL.ADDR.IND> = "H"
+      MTPL.REC<MTPL.PREM.RATE> = 100000000
+      MTPL.REC<MTPL.PREM.MTD> = "P"
+      MTPL.REC<MTPL.ANN.DAYS> = "365"
+      MTPL.REC<MTPL.ABS.IND> = "N"
+      ADJ.PREM = MTPL.REC<MTPL.GROSS.PREM> - MTPL.REC<MTPL.POL.PREM>
+      MTPL.REC<MTPL.ADJ.PREM> = ADJ.PREM
+      MTPL.REC<MTPL.GROSS.PREM> = ATEM.GROSS
+      MTPL.REC<MTPL.CHASSIS.NBR> = CHASSIS.NBR
+*--- RECEIPT DATA
+      IF RECP.NAME # "" AND RECP.ADDRESS # "" THEN
+         RECEIPT.BRANCH = FIELD(RECP.CODE,"_",2)
+         RECEIPT.TAX.ID = FIELD(RECP.CODE,"_",1)
+         MTPL.REC<MTPL.RECP.TITLE>="999M"
+         MTPL.REC<MTPL.RECP.NAME>=RECP.NAME
+         MTPL.REC<MTPL.RECP.TAXIDNBR>=RECEIPT.TAX.ID
+         MTPL.REC<MTPL.RECP.BRANCHNBR>=RECEIPT.BRANCH
+         RECP.ADDRESS = TRIM(RECP.ADDRESS)
+         CNT.CODE = 0
+         IF RECP.DISTRICT[1,2] MATCHES "0N" AND RECP.DISTRICT[1,2] # "99" THEN CNT.CODE +=1
+         IF RECP.DISTRICT[4,2] MATCHES "0N" AND RECP.DISTRICT[4,2] # "99" THEN CNT.CODE +=1
+         IF RECP.PROVINCE MATCHES "0N" AND RECP.PROVINCE # "99" THEN CNT.CODE +=1
+         IF RECP.POST.CODE MATCHES "0N" THEN CNT.CODE +=1
+         IF CNT.CODE = 4 THEN
+            MTPL.REC<MTPL.RECP.ADDRESS>=RECP.ADDRESS
+            MTPL.REC<MTPL.RECP.AMPHOE>=RECP.DISTRICT
+            MTPL.REC<MTPL.RECP.PROVINCE>=RECP.PROVINCE
+            MTPL.REC<MTPL.RECP.POSTCODE>=RECP.POST.CODE
+         END ELSE
+            MTPL.REC<MTPL.RECP.ADDRESS>=RECP.ADDRESS
+            MTPL.REC<MTPL.RECP.AMPHOE>="99*99"
+            MTPL.REC<MTPL.RECP.PROVINCE>="99"
+         END
+      END
+*--- DELIVERY DATA
+      IF DEL.CODE # "" AND DEL.ADDRESS # "" THEN
+         CNT.CODE = 0
+         IF RECP.DISTRICT[1,2] MATCHES "0N" AND RECP.DISTRICT[1,2] # "99" THEN CNT.CODE +=1
+         IF RECP.DISTRICT[4,2] MATCHES "0N" AND RECP.DISTRICT[4,2] # "99" THEN CNT.CODE +=1
+         IF RECP.PROVINCE MATCHES "0N" AND RECP.PROVINCE # "99" THEN CNT.CODE +=1
+         IF RECP.POST.CODE MATCHES "0N" THEN CNT.CODE +=1
+         IF CNT.CODE = 4 THEN
+            MTPL.REC<MTPL.DEL.CODE>=DEL.CODE
+            MTPL.REC<MTPL.DEL.REMARKS>=DEL.NAME
+            MTPL.REC<MTPL.DEL.ADDR>=DEL.ADDRESS
+            MTPL.REC<MTPL.DEL.AMPHOE>=DEL.DISTRICT
+            MTPL.REC<MTPL.DEL.POSTCODE>=DEL.POST.CODE
+            MTPL.REC<MTPL.DEL.PROVINCE>=DEL.PROVINCE
+         END
+      END
+*	
+      MTPL.REC<MTPL.VEH.NBR1> = VEH.NBR1
+      MTPL.REC<MTPL.VEH.NBR2> = VEH.NBR2
+      MTPL.REC<MTPL.VEH.NBR> = VEH.NBR
+      MTPL.REC<MTPL.VEH.PROVINCE> = VEH.PROV
+      MTPL.REC<MTPL.VEH.TYPE> = VEH.TYPE
+      MTPL.REC<MTPL.VEH.MODEL> = VEH.MODEL
+      MTPL.REC<MTPL.COLOR.CODE> = VEH.COLOR
+
+      MTPL.REC<MTPL.YEAR.MADE> = YEAR.MADE      
+      MTPL.REC<MTPL.CALL.TELNBR> = MOBILE.NO      
+      MTPL.REC<MTPL.BENEFIT.CODE> = BENEFIT.CODE
+      MTPL.REC<MTPL.BENEFIT.NAME> = BENEFIT.NAME
+      IF COMP.IND = "1" THEN
+         GOSUB 2310.3                    ; *Default Data Comp
+      END
+      GOSUB 2330
+      OUTREC = ""
+      IF ERR.REC = "" THEN
+         CALL COMPUTE.COMM(MTPL.REC,OUTREC)        ; * Comp. Commission
+      END
+      RETURN
+2310.1:*--- Car Inspect Default Data
+      IF ERR.REC # "" THEN RETURN
+      INREC = "" ; OUTREC = ""
+      IF TRIM(MTAP.ID) = "" AND ERR.REC = "" THEN
+         MTPL.REC<MTPL.POST.USERID> = ""
+         MTPL.REC<MTPL.POST.DATE> = ""
+         MTPL.REC<MTPL.WORK.STATUS> = "C"
+         MTPL.REC<MTPL.TYPE> = "APMT"
+         MTPL.REC<MTPL.REMARKS> = "รวมอุปกรณ์ตกแต่ง":CAR.DECO
+         YY = VOL.EDATE[1,4] + 543
+         MM = VOL.EDATE[5,2]
+         YYMM = YY[3,2]:MM
+         APPLNBR.REC = "11001":YY[3,2]
+         INREC1="" ; OUTREC1=""
+         INREC1<1> = "APPL"
+         INREC1<2> = APPLNBR.REC
+         INREC1<3> = "MT.APPL"
+         CALL SUBNUMBER(INREC1,OUTREC1)
+         MTAP.ID = OUTREC1<1>
+         MTPL.REC<MTPL.APPL.NBR> = MTAP.ID
+         INREC="" ; OUTREC=""
+         INREC<1> = INSURED.TITLE
+         INREC<2> = INSURED.NAME
+         INREC<3> = INSURED.ID
+         INREC<4> = ""
+         INREC<5> = POL.ADDRESS
+         INREC<6> = POL.ADDRESS
+         INREC<7> = POL.DISTRICT
+         INREC<8> = POL.POST.CODE
+         INREC<9> = "M":MOBILE.NO
+         INREC<10> = ""
+         INREC<12> = AGENT.CODE
+         INREC<13> = "N"
+         INREC<14> = ""
+         INREC<15> = "9999"
+         INREC<16> = ""
+         INREC<18> = EMAIL
+         INREC<19> = INSURED.BRANCH.NBR
+         INREC<21> = ID.TYPE
+         INREC<23> = "THA"
+         CALL TVI.UPCLIENTMAST(INREC,OUTREC)
+         MTPL.REC<MTPL.CLIENT.CODE> = OUTREC<1>
+         IF MTPL.REC<MTPL.BODY.TYPE> = "" THEN
+            BEGIN CASE
+               CASE VEH.TYPE = "110"
+                  MTPL.REC<MTPL.BODY.TYPE> = "001"
+               CASE VEH.TYPE = "320"
+                  IF WEIGHT LE 3000 THEN
+                     MTPL.REC<MTPL.BODY.TYPE> = "004"
+                  END
+                  IF WEIGHT GE 4001 THEN
+                     MTPL.REC<MTPL.BODY.TYPE> = "003"
+                  END
+               CASE VEH.TYPE = "420"
+                  MTPL.REC<MTPL.BODY.TYPE> = "151"
+               CASE VEH.TYPE = "520"
+                  MTPL.REC<MTPL.BODY.TYPE> = "014"
+               CASE 1 ; 
+            END CASE
+         END
+         IF TRIM(OLD.POL.NBR) # "" THEN
+            MTPL.REC<MTPL.REP.POL.NBR> = OLD.POL.NBR
+            READ PREV.REC FROM MTPL.FL, OLD.POL.NBR ELSE PREV.REC=""
+            READ PREVH.REC FROM MTPH.FL, OLD.POL.NBR ELSE PREVH.REC=""
+            PREV.REC<MTPL.REN.APPL.NBR> = MTAP.ID
+            PREVH.REC<MTPL.REN.APPL.NBR> = MTAP.ID
+            WRITE PREV.REC ON MTPL.FL, OLD.POL.NBR
+            WRITE PREVH.REC ON MTPH.FL, OLD.POL.NBR
+         END
+*--- Update STMT.MAST
+         STMT.ID = MTPL.REC<MTPL.STMT.KEY>
+         POL.FILE = "MT.APPL"
+         CALL GENSTMTPOL(POL.FILE,MTPL.REC,MTAP.ID,STMT.ID,STMT.FL,STHS.FL,NUM.FL)
+         MTPL.REC<MTPL.STMT.KEY> = STMT.ID
+*
+         WRITE MTPL.REC ON MTAP.FL, MTAP.ID
+         IF PLATE.TYPE = "B" THEN
+            XREF.ID = MTPL.REC<MTPL.CHASSIS.NBR> ; XREF.FL=MTXC.FL
+            GOSUB 1700
+            XREF.ID = MTPL.REC<MTPL.VEH.NBR> ; XREF.FL=MTXV.FL
+            GOSUB 1700
+         END
+      END
+      RETURN
+2310.2:*--- Gen Policy
+      INREC = "" ; OUTREC = ""
+      IF TRIM(VOL.ID) = "" AND ERR.REC = "" THEN
+         YY = EFF.YRMTH[1,4] + 543
+         MM = EFF.YRMTH[5,2]
+         YYMM = YY[3,2]:MM
+         INREC = "" ; OUTREC = ""
+         REF.KEY = MTPL.REC<MTPL.ISSUE.OFF>
+         REF.KEY:= "1010"
+         REF.KEY:= YYMM
+         INREC<1> = "POL"
+         INREC<2> = REF.KEY
+         INREC<3> = "MT.POLICY"
+         CALL SUBNUMBER(INREC,OUTREC)
+         VOL.ID = OUTREC<1>
+         MTPL.REC<MTPL.VOL.POL.NBR> = VOL.ID
+         MTPL.REC<MTPL.APPL.POL.NBR> = VOL.ID
+         VOL.REC="" ; VOLH.REC=""
+         VOL.REC = MTPL.REC
+         MTPL.REC<MTPL.WORK.STATUS> = "P"
+         IF VOL.ID # "" THEN
+            CALL UPDATE.UWPOLICY(VOL.ID,VOL.REC,"",INREC,OUTREC)
+            IF COMP.IND = "1" THEN
+               CALL GEN.MT.COMP(COMP.ID,COMP.REC,ERR.REC,OUTREC)
+            END
+            READ VOL.REC FROM MTPL.FL, VOL.ID ELSE VOL.REC = ""
+            READ VOLH.REC FROM MTPH.FL, VOL.ID ELSE VOLH.REC = ""
+            CLIENT.CODE = VOL.REC<MTPL.CLIENT.CODE>
+            READ CLNT.REC FROM CLNT.FL, CLIENT.CODE ELSE CLNT.REC = ""
+            CLNT.REC<CLNT.ID.TYPE> = ID.TYPE
+            CLNT.REC<CLNT.EMAIL> = EMAIL
+            WRITE CLNT.REC ON CLNT.FL, CLIENT.CODE
+            IF COMP.IND = "1" THEN
+               READ COMP.REC FROM MTPL.FL, COMP.ID ELSE COMP.REC = ""
+               READ COMPH.REC FROM MTPH.FL, COMP.ID ELSE COMPH.REC = ""
+            END
+            IF VOL.REC<MTPL.BODY.TYPE> = "" THEN
+               BEGIN CASE
+                  CASE VOL.REC<MTPL.VEH.TYPE> = "110"
+                     VOL.REC<MTPL.BODY.TYPE> = "001"
+                     VOLH.REC<MTPL.BODY.TYPE> = "001"
+                     COMP.REC<MTPL.BODY.TYPE> = "001"
+                     COMPH.REC<MTPL.BODY.TYPE> = "001"
+                  CASE VOL.REC<MTPL.VEH.TYPE> = "320"
+                     IF VOL.REC<MTPL.GVW> LE 3000 THEN
+                        VOL.REC<MTPL.BODY.TYPE> = "004"
+                        VOLH.REC<MTPL.BODY.TYPE> = "004"
+                        COMP.REC<MTPL.BODY.TYPE> = "004"
+                        COMPH.REC<MTPL.BODY.TYPE> = "004"
+                     END
+                     IF VOL.REC<MTPL.GVW> GE 4001 THEN
+                        VOL.REC<MTPL.BODY.TYPE> = "003"
+                        VOLH.REC<MTPL.BODY.TYPE> = "003"
+                        COMP.REC<MTPL.BODY.TYPE> = "003"
+                        COMPH.REC<MTPL.BODY.TYPE> = "003"
+                     END
+                  CASE VOL.REC<MTPL.VEH.TYPE> = "420"
+                     VOL.REC<MTPL.BODY.TYPE> = "151"
+                     VOLH.REC<MTPL.BODY.TYPE> = "151"
+                     COMP.REC<MTPL.BODY.TYPE> = "151"
+                     COMPH.REC<MTPL.BODY.TYPE> = "151"
+                  CASE VOL.REC<MTPL.VEH.TYPE> = "520"
+                     VOL.REC<MTPL.BODY.TYPE> = "014"
+                     VOLH.REC<MTPL.BODY.TYPE> = "014"
+                     COMP.REC<MTPL.BODY.TYPE> = "014"
+                     COMPH.REC<MTPL.BODY.TYPE> = "014"
+                  CASE 1 ; 
+               END CASE
+            END
+*            IF COMP.IND = "1" THEN
+            IF (COMP.IND = "1") AND (COMP.ID # "") THEN
+               VOL.REC<MTPL.COMP.POL.NBR> = COMP.ID
+               VOLH.REC<MTPL.COMP.POL.NBR> = COMP.ID
+               COMP.REC<MTPL.VOL.POL.NBR> = VOL.ID
+               COMPH.REC<MTPL.VOL.POL.NBR> = VOL.ID
+               COMP.REC<MTPL.COMP.GROSSPREM> = COMP.REC<MTPL.GROSS.PREM>
+               COMP.REC<MTPL.COMP.STAMP.PCT> = COMP.REC<MTPL.STAMP.PCT>
+               COMP.REC<MTPL.COMP.STAMP.AMT> = COMP.REC<MTPL.STAMP.AMT>
+               COMP.REC<MTPL.COMP.VAT.PCT> = COMP.REC<MTPL.VAT.PCT>
+               COMP.REC<MTPL.COMP.VAT.AMT> = COMP.REC<MTPL.VAT.AMT>
+               COMPH.REC<MTPL.COMP.GROSSPREM> = COMPH.REC<MTPL.GROSS.PREM>
+               COMPH.REC<MTPL.COMP.STAMP.PCT> = COMPH.REC<MTPL.STAMP.PCT>
+               COMPH.REC<MTPL.COMP.STAMP.AMT> = COMPH.REC<MTPL.STAMP.AMT>
+               COMPH.REC<MTPL.COMP.VAT.PCT> = COMPH.REC<MTPL.VAT.PCT>
+               COMPH.REC<MTPL.COMP.VAT.AMT> = COMPH.REC<MTPL.VAT.AMT>
+               WRITE COMP.REC ON MTPL.FL, COMP.ID
+               WRITE COMPH.REC ON MTPH.FL, COMP.ID
+            END
+            IF TRIM(OLD.POL.NBR) # "" THEN
+               VOL.REC<MTPL.REP.POL.NBR> = OLD.POL.NBR
+               VOLH.REC<MTPL.REP.POL.NBR> = OLD.POL.NBR
+               READ PREV.REC FROM MTPL.FL, OLD.POL.NBR ELSE PREV.REC=""
+               READ PREVH.REC FROM MTPH.FL, OLD.POL.NBR ELSE PREVH.REC=""
+               PREV.REC<MTPL.REN.POL.NBR> = VOL.ID
+               PREVH.REC<MTPL.REN.POL.NBR> = VOL.ID
+               WRITE PREV.REC ON MTPL.FL, OLD.POL.NBR
+               WRITE PREVH.REC ON MTPH.FL, OLD.POL.NBR
+            END
+            WRITE VOL.REC ON MTPL.FL, VOL.ID
+            WRITE VOLH.REC ON MTPH.FL, VOL.ID
+         END
+      END
+      RETURN
+2310.3:*--- Comp Default Data
+      IF ERR.REC # "" THEN RETURN
+      COMP.REC<MTPL.USERID> = "MSP"
+      COMP.REC<MTPL.POST.USERID> = "MSP"
+      COMP.REC<MTPL.ISSUE.OFF> = "00"
+      COMP.REC<MTPL.COUNTER.CODE> = "0002"
+      COMP.REC<MTPL.REN.IND> = "1"
+      COMP.REC<MTPL.REF.NBR> = REF.NBR
+*      COMP.REC<MTPL.DEL.CODE> = "1C"
+      COMP.REC<MTPL.DEL.CODE> = DEL.CODE
+      STAFF.PERF=PV.OCONV(AGENT.CODE,"TAGENT.MAST;X;;43")
+      COMP.REC<MTPL.STAFF.PERF> = STAFF.PERF
+      COMP.REC<MTPL.ADDRESS> = POL.ADDRESS
+      COMP.REC<MTPL.ID.NBR> = INSURED.ID
+      COMP.REC<MTPL.SUM.INS> = 0
+      COMP.REC<MTPL.SUM.INS2> = 0
+      COMP.REC<MTPL.AGENT.CODE> = AGENT.CODE
+      COMP.REC<MTPL.MAGENT> = AGENT.CODE
+      COMP.REC<MTPL.TITLE> = INSURED.TITLE
+      COMP.REC<MTPL.VEH.NBR1> = VEH.NBR1
+      COMP.REC<MTPL.VEH.NBR2> = VEH.NBR2
+      COMP.REC<MTPL.VEH.NBR> = VEH.NBR
+      COMP.REC<MTPL.VEH.PROVINCE> = VEH.PROV
+      COMP.REC<MTPL.CALL.TELNBR> = MOBILE.NO
+      
+      COMP.REC<MTPL.PEN.REMARKS> = ""
+      COMP.REC<MTPL.TYPE> = "PLMT"
+      COMP.REC<MTPL.OCCUP.CODE> = 9999
+      COMP.REC<MTPL.UNNAMED.IND> = MTPL.REC<MTPL.UNNAMED.IND>
+      COMP.REC<MTPL.DRI.AGE> = ""
+      COMP.REC<MTPL.YRMTH> = YRMTH
+      COMP.REC<MTPL.STATUS> = "A"
+      COMP.REC<MTPL.FORM.TYPE> = "C"
+      COMP.REC<MTPL.ADDR.IND> = "H"
+      COMP.REC<MTPL.PREM.RATE> = 100000000
+      COMP.REC<MTPL.PREM.MTD> = "P"
+      COMP.REC<MTPL.ANN.DAYS> = "365"
+      COMP.REC<MTPL.ABS.IND> = "N"
+      COMP.REC<MTPL.CHASSIS.NBR> = CHASSIS.NBR
+      COMP.REC<MTPL.ENGINE.NBR> = ""
+      COMP.REC<MTPL.AMPHOE> = OCONV(POL.DISTRICT,"TRISK.AMPHOE;X;;":RDIS.DESC)
+      COMP.REC<MTPL.PROVINCE> = OCONV(POL.PROVINCE,"TRISK.CHANGWAT;X;;":RPRO.DESC)
+      COMP.REC<MTPL.COMP.EDATE> = COMP.EDATE
+      COMP.REC<MTPL.COMP.XDATE> = ""
+      COMP.REC<MTPL.TEMPLATE.NBR> = ""
+      COMP.REC<MTPL.GROSS.PREM> = COMP.GROSS.PRE
+      COMP.REC<MTPL.STAMP.AMT> = COMP.STAMP.AMT
+      COMP.REC<MTPL.VAT.AMT> = COMP.VAT.AMT
+      COMP.REC<MTPL.TOTAL.DUE> = COMP.TOT.PRE
+      COMP.REC<MTPL.CO.CODE> = "4"
+      COMP.REC<MTPL.AGREE.DATE> = CDATE$
+      IF COMP.REC<MTPL.AGREE.DATE> GT COMP.EDATE THEN
+         COMP.REC<MTPL.AGREE.DATE> = COMP.EDATE
+      END
+      COMP.REC<MTPL.YEAR.MADE> = YEAR.MADE
+      IF COMP.EDATE GT CDATE$ THEN
+         ETIME = "60"
+      END ELSE
+         ETIME = TIME()
+      END
+      IF CON.POL = "T" THEN
+         ETIME = 59460
+      END
+      COMP.REC<MTPL.ETIME> = ETIME
+      SEX = OCONV(INSURED.TITLE,"TTITLE.MAST;X;;":TITL.SEX)
+*      COMP.REC<MTPL.AGE> = AGE
+      COMP.REC<MTPL.ID.NBR> = INSURED.ID
+      COMP.REC<MTPL.REN.YEAR> = COMP.EDATE 'DY'
+      COMP.REC<MTPL.VEH.MODEL,1> = VEH.MODEL
+      COMP.REC<MTPL.VEH.MODEL,2> = "1"
+      COMP.REC<MTPL.VEH.DESC> = VEH.DESC
+      COMP.REC<MTPL.TDATE> = MTPL.REC<MTPL.TDATE>
+      COMP.REC<MTPL.YRMTH> = MTPL.REC<MTPL.YRMTH>
+      COMP.REC<MTPL.STMT.KEY> = ""
+      COMP.REC<MTPL.ISSUE.DATE> = DATE()
+      COMP.REC<MTPL.ISSUE.TIME> = TIME()
+      COMP.REC<MTPL.STATUS.DATE> = DATE()
+      COMP.REC<MTPL.COVER.DAYS> = COMP.XDATE - COMP.EDATE
+      COMP.REC<MTPL.SEX> = SEX
+      COMP.REC<MTPL.DISP> = DISP
+      COMP.REC<MTPL.GVW> = WEIGHT
+      COMP.REC<MTPL.SEAT> = SEAT
+      COMP.REC<MTPL.CAP.CODE> = CAP.CODE
+      COMP.REC<MTPL.BODY.TYPE> = ""
+      COMP.REC<MTPL.VEH.GROUP> = VEH.GROUP
+      COMP.REC<MTPL.POST.DATE> = ""
+      COMP.REC<MTPL.XDATE> = COMP.XDATE
+      COMP.REC<MTPL.EDATE> = COMP.EDATE
+*
+      READ MTTY.REC FROM MTTY.FL, VEH.TYPE ELSE MTTY.REC = ""
+      VEH.USE = MTTY.REC<MTTY.VEHUSE>
+      VEH.UOM = MTTY.REC<MTTY.UOM>
+      VEH.CAP = MTTY.REC<MTTY.CAP.CODE,1>
+      VEH.CODE = MTTY.REC<MTTY.VEH.CODE,1>
+*
+      COMP.REC<MTPL.VEH.USE> = VEH.USE
+      COMP.REC<MTPL.VEH.CODE> = VEH.CODE
+      COMP.REC<MTPL.VEH.TYPE> = VEH.TYPE
+      COMP.REC<MTPL.UOM.CODE> = VEH.UOM
+      RETURN
+2330:*--- Additional Info
+      IF ERR.REC # "" THEN RETURN
+*--- Policy Number
+      IF COMP.IND = 1 THEN
+         MTPL.REC<MTPL.CO.CODE> = 1
+         IF COMP.EDATE = VOL.EDATE THEN
+            MTPL.REC<MTPL.CO.CODE> = 3
+         END
+      END ELSE
+         MTPL.REC<MTPL.CO.CODE> = 4
+      END
+      IF TRIM(MTPL.REC<MTPL.AGREE.DATE>) = "" THEN
+         MTPL.REC<MTPL.AGREE.DATE> = CDATE$
+         IF MTPL.REC<MTPL.AGREE.DATE> GT MTPL.REC<MTPL.EDATE> THEN
+            MTPL.REC<MTPL.AGREE.DATE> = MTPL.REC<MTPL.EDATE>
+         END
+      END
+      AGREE.DATE = MTPL.REC<MTPL.AGREE.DATE>
+*--- Vehicle Nbr
+      YEAR.MADE = MTPL.REC<MTPL.YEAR.MADE>
+      IF YEAR.MADE GE 2400 THEN
+         MTPL.REC<MTPL.YEAR.MADE> -= 543
+      END
+      COMP.REC<MTPL.CO.CODE> = MTPL.REC<MTPL.CO.CODE>
+      COMP.REC<MTPL.AGREE.DATE> = MTPL.REC<MTPL.AGREE.DATE>
+      COMP.REC<MTPL.YEAR.MADE> = MTPL.REC<MTPL.YEAR.MADE>
+*--- Vehicle Model details
+      MTVD.ID = MTPL.REC<MTPL.VEH.MODEL>
+      READ MTVD.REC FROM MTVD.FL, MTVD.ID ELSE MTVD.REC = ""
+      BODY.TYPE = MTVD.REC<MTVD.BODY.TYPE>
+      DISP = INT(MTVD.REC<MTVD.DISP> / 100)
+      SEAT = MTVD.REC<MTVD.SEAT.NBR>
+      GVW = MTVD.REC<MTVD.WEIGHT>
+      VEH.GROUP = MTVD.REC<MTVD.VEH.GROUP>
+      VEH.DESC = MTVD.REC<MTVD.DESC>
+*--- Vehicle Type/Code
+      GOSUB 2330.1
+*--- Cover Days
+      COVER.DAYS = MTPL.REC<MTPL.XDATE> - MTPL.REC<MTPL.EDATE>
+      EFF.MM = MTPL.REC<MTPL.EDATE> 'DM[2]'
+      EFF.YY = MTPL.REC<MTPL.EDATE> 'DY'
+      EFF.YRMTH = EFF.YY:EFF.MM
+      IF EFF.YRMTH LT YRMTH THEN EFF.YRMTH = YRMTH
+*      IF CDATE$ GE MTPL.REC<MTPL.EDATE> THEN
+      IF MTPL.REC<MTPL.EDATE> GT CDATE$ THEN
+         ETIME = "60"
+      END ELSE
+         ETIME = TIME()
+      END
+      IF CON.POL = "T" THEN
+         ETIME = 59460
+      END
+      MTPL.REC<MTPL.ETIME> = ETIME
+      COMP.REC<MTPL.ETIME> = MTPL.REC<MTPL.ETIME>
+*--- Insured
+      SEX = OCONV(MTPL.REC<MTPL.TITLE>,"TTITLE.MAST;X;;":TITL.SEX)
+      AGE = MTPL.REC<MTPL.AGE>
+      DOB = MTPL.REC<MTPL.DOB>
+      IF DOB # "" AND AGE+0 = 0 THEN
+         AGE = PV.OCONV(MTPL.REC<MTPL.EDATE>,"DY") - PV.OCONV(DOB,"DY")
+         AGE = AGE + 1
+         MTPL.REC<MTPL.AGE> = AGE
+         COMP.REC<MTPL.AGE> = MTPL.REC<MTPL.AGE>
+      END
+*--- Phone Number
+*      TEL.ARY = ""
+*      TEL1 = FIELD(MTPL.REC<MTPL.PEN.REMARKS,1>,",",1)
+*      TEL2 = FIELD(MTPL.REC<MTPL.PEN.REMARKS,1>,",",2)
+*      IF TEL1 NE "" THEN TEL.ARY<1,-1> = "H":TEL1
+*      IF TEL2 NE "" THEN TEL.ARY<1,-1> = "M":TEL2
+*      INREC = "" ; OUTREC = ""
+*      INREC<1> = TEL.ARY
+*      CALL SUBTELNBR(INREC,OUTREC)
+*      TEL.NBR = CHANGE(OUTREC<1>,"|",",")
+*      EXT.NBR = CHANGE(OUTREC<2>,"|",",")
+*--- ID Number
+      ID.NBR = MTPL.REC<MTPL.ID.NBR>
+      IF ID.NBR MATCHES "0N" THEN
+         ID.NBR0 = CHANGE(ID.NBR,"0","")
+         ID.NBR1 = CHANGE(ID.NBR,"1","")
+         BEGIN CASE
+            CASE ID.NBR0 = "" ; ID.NBR = ""
+            CASE ID.NBR1 = "" ; ID.NBR = ""
+         END CASE
+         MTPL.REC<MTPL.ID.NBR> = ID.NBR
+         COMP.REC<MTPL.ID.NBR> = MTPL.REC<MTPL.ID.NBR>
+      END
+*--- Renewal Policy
+*      IF MTPL.REC<MTPL.REN.YEAR>+0 = 0 THEN
+      MTPL.REC<MTPL.REN.YEAR> = MTPL.REC<MTPL.EDATE> 'DY'
+      COMP.REC<MTPL.REN.YEAR> = MTPL.REC<MTPL.REN.YEAR>
+*      END
+*--- Statement Key
+      STMT.ID = OCONV(VOL.ID,"TMT.POLICY;X;;":MTPL.STMT.KEY)
+*--- Map data
+      IF MTPL.REC<MTPL.TDATE> = "" THEN MTPL.REC<MTPL.TDATE> = CDATE$
+      MTPL.REC<MTPL.YRMTH> = EFF.YRMTH
+      MTPL.REC<MTPL.STMT.KEY> = STMT.ID
+      MTPL.REC<MTPL.ISSUE.DATE> = CDATE$
+      MTPL.REC<MTPL.ISSUE.TIME> = TIME()
+      MTPL.REC<MTPL.STATUS.DATE> = CDATE$
+      MTPL.REC<MTPL.COVER.DAYS> = COVER.DAYS
+*      MTPL.REC<MTPL.COVER.HOURS> = COVER.HOURS
+      IF MTPL.REC<MTPL.SEX> = "" THEN
+         MTPL.REC<MTPL.SEX> = SEX
+      END
+      IF MTPL.REC<MTPL.DISP> = "" OR MTPL.REC<MTPL.DISP> = 0 THEN
+         MTPL.REC<MTPL.DISP> = DISP
+      END
+      IF MTPL.REC<MTPL.GVW> = "" OR MTPL.REC<MTPL.GVW> = 0 THEN
+         MTPL.REC<MTPL.GVW> = GVW
+      END
+      IF MTPL.REC<MTPL.SEAT> = "" OR MTPL.REC<MTPL.SEAT> = 0 THEN
+         MTPL.REC<MTPL.SEAT> = SEAT
+      END
+      MTPL.REC<MTPL.CAP.CODE> = VEH.CAP
+      MTPL.REC<MTPL.BODY.TYPE> = BODY.TYPE
+      MTPL.REC<MTPL.VEH.GROUP> = VEH.GROUP
+      MTPL.REC<MTPL.VEH.DESC> = VEH.DESC
+      COMP.REC<MTPL.VEH.MODEL,1> = MTPL.REC<MTPL.VEH.MODEL>
+      COMP.REC<MTPL.VEH.MODEL,2> = "1"
+      COMP.REC<MTPL.VEH.DESC> = VEH.DESC
+*--- Posting
+      POST.DATE = ""
+      CALL GETPOSTINGDATE(MTPL.REC<MTPL.YRMTH>,POST.DATE)
+      IF MTPL.REC<MTPL.POST.USERID> # "" THEN
+         MTPL.REC<MTPL.POST.DATE> = POST.DATE
+      END
+      COMP.REC<MTPL.TDATE> = MTPL.REC<MTPL.TDATE>
+      COMP.REC<MTPL.YRMTH> = MTPL.REC<MTPL.YRMTH>
+      COMP.REC<MTPL.STMT.KEY> = ""
+      COMP.REC<MTPL.ISSUE.DATE> = MTPL.REC<MTPL.ISSUE.DATE>
+      COMP.REC<MTPL.ISSUE.TIME> = MTPL.REC<MTPL.ISSUE.TIME>
+      COMP.REC<MTPL.STATUS.DATE> = MTPL.REC<MTPL.STATUS.DATE>
+      COMP.REC<MTPL.COVER.DAYS> = COMP.REC<MTPL.XDATE>-COMP.REC<MTPL.EDATE>
+      COMP.REC<MTPL.SEX> = MTPL.REC<MTPL.SEX>
+      COMP.REC<MTPL.DISP> = MTPL.REC<MTPL.DISP>
+      COMP.REC<MTPL.GVW> = MTPL.REC<MTPL.GVW>
+      COMP.REC<MTPL.SEAT> = MTPL.REC<MTPL.SEAT>
+      COMP.REC<MTPL.CAP.CODE> = MTPL.REC<MTPL.CAP.CODE>
+      COMP.REC<MTPL.BODY.TYPE> = MTPL.REC<MTPL.BODY.TYPE>
+      COMP.REC<MTPL.VEH.GROUP> = MTPL.REC<MTPL.VEH.GROUP>
+      COMP.REC<MTPL.POST.DATE> = MTPL.REC<MTPL.POST.DATE>
+      RETURN
+2330.1:*--- Vehicle Type Details
+*--- Get Vehicle Code
+      VEH.TYPE = MTPL.REC<MTPL.VEH.TYPE>
+*--- Vehicle Code details
+      READ MTTY.REC FROM MTTY.FL, VEH.TYPE ELSE MTTY.REC = ""
+      VEH.USE = MTTY.REC<MTTY.VEHUSE>
+      VEH.UOM = MTTY.REC<MTTY.UOM>
+      VEH.CAP = MTTY.REC<MTTY.CAP.CODE,1>
+      VEH.CODE = MTTY.REC<MTTY.VEH.CODE,1>
+*
+      MTPL.REC<MTPL.VEH.USE> = VEH.USE
+      MTPL.REC<MTPL.VEH.CODE> = VEH.CODE
+      MTPL.REC<MTPL.VEH.TYPE> = VEH.TYPE
+      MTPL.REC<MTPL.UOM.CODE> = VEH.UOM
+      COMP.REC<MTPL.VEH.USE> = VEH.USE
+      COMP.REC<MTPL.VEH.CODE> = VEH.CODE
+      COMP.REC<MTPL.VEH.TYPE> = VEH.TYPE
+      COMP.REC<MTPL.UOM.CODE> = VEH.UOM
+*--- Capacity Code
+      BEGIN CASE
+         CASE VEH.UOM = "S" ; UOM.VAL = MTPL.REC<MTPL.SEAT>
+         CASE VEH.UOM = "K" ; UOM.VAL = MTPL.REC<MTPL.GVW>
+         CASE 1 ; UOM.VAL = MTPL.REC<MTPL.DISP>
+      END CASE
+      M.IDX7 = DCOUNT(MTTY.REC<MTTY.CAP.CODE>,VM$)
+      FOR IDX7 = M.IDX7 TO 1 STEP -1
+         CAP.FR = MTTY.REC<MTTY.CAP.FROM,IDX7>
+         CAP.TO = MTTY.REC<MTTY.CAP.TO,IDX7>
+         IF UOM.VAL GE CAP.FR AND UOM.VAL LE CAP.TO THEN
+            VEH.CAP = MTTY.REC<MTTY.CAP.CODE,IDX7>
+            EXIT
+         END
+      NEXT IDX7
+      RETURN
+3010:*--- Convert to JSON
+      ECODE = FIELD(ERR.REC<1>,"*",1)
+      EDESC = FIELD(ERR.REC<1>,"*",2)
+      LOCATE(ECODE,ERR.CODE.PARAM,1;POS1) THEN
+         RES.MSG = ERR.DESC.PARAM<1,POS1>
+         IF EDESC # "" THEN RES.MSG:= " ":EDESC
+      END
+      TRAN.RES = "FAIL"
+      OUTREC = ""
+      OUTREC<-1> = \{\
+      OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+      OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+      OUTREC<-1> = \"errorDesc":"\:RES.MSG:\",\
+      OUTREC<-1> = \"campaignDetails":[\
+      OUTREC<-1> = \]}\
+      RETURN
+3020:*--- Convert to JSON Verify data and Gen Policy
+      ECODE = FIELD(ERR.REC<1>,"*",1)
+      EDESC = FIELD(ERR.REC<1>,"*",2)
+      LOCATE(ECODE,ERR.CODE.PARAM,1;POS1) THEN
+         RES.MSG = ERR.DESC.PARAM<1,POS1>
+         IF EDESC # "" THEN RES.MSG:= " ":EDESC
+      END
+      TRAN.RES = "FAIL"
+      BEGIN CASE
+         CASE TRAN.TYPE = "VERIFY"
+            OUTREC = ""
+            OUTREC<-1> = \{\
+            OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+            OUTREC<-1> = \"refNbr":"\:REF.NBR:\",\
+            OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+            OUTREC<-1> = \"errorCode":"\:ECODE:\",\
+            OUTREC<-1> = \"errorDesc":"\:RES.MSG:\"}\
+         CASE TRAN.TYPE = "GENPOLICY"
+            OUTREC = ""
+            OUTREC<-1> = \{\
+            OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+            OUTREC<-1> = \"refNbr":"\:REF.NBR:\",\
+            OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+            OUTREC<-1> = \"errorCode":"\:ECODE:\",\
+            OUTREC<-1> = \"errorDesc":"\:RES.MSG:\"}\
+      END CASE
+      RETURN
+4600:*--- Print Policy
+      IF ERR.REC # "" THEN RETURN
+      IF DEL.CODE[1,1] # "1" THEN RETURN
+      IF (COMP.IND="1") AND (CAMPAIGN.CODE="COMP") THEN
+         IF COMP.ID = "" THEN RETURN
+      END ELSE
+         IF UPCASE(CAR.INSPECT)="Y" THEN
+            IF MTAP.ID = "" THEN RETURN
+         END ELSE
+            IF VOL.ID = "" THEN RETURN
+         END
+      END
+      INREC1 = "" ; OUTREC1 = ""
+      INREC1<1> = "WEBSPOOL"
+      INREC1<2> = "WSPOOLLOG"
+      CALL SUBNUMBER(INREC1,OUTREC1)
+      PVSP.ID = OUTREC1<1>
+      PVSP.REC = ""
+      PVSP.REC<1> = MTPL.REC<MTPL.USERID>
+      PVSP.REC<2> = DATE()
+      PVSP.REC<3> = TIME()
+      IF (COMP.IND="1") AND (CAMPAIGN.CODE="COMP") THEN
+         PVSP.REC<6> = "MTUW0036"
+         PVSP.REC<15>= \SELECT MT.POLICY WITH @ID = "\:COMP.ID:\"\
+      END ELSE
+         IF UPCASE(CAR.INSPECT)="Y" THEN
+            PVSP.REC<6> = "MTUW0020"
+            PVSP.REC<15> = \SELECT MT.APPL WITH @ID = "\:MTAP.ID:\"\
+         END ELSE
+            PVSP.REC<6> = "MTUW0021"
+            PVSP.REC<15> = \SELECT MT.POLICY WITH @ID = "\:VOL.ID:\"\
+         END
+      END
+      PVSP.REC<10> = 1
+      PVSP.REC<11> = PTR.CODE
+      WRITE PVSP.REC ON PVSP.FL, PVSP.ID
+*
+      PRN.CMD = PVSP.REC<6>:" ":PVSP.ID
+      EXECUTE PRN.CMD
+      IF (COMP.IND="1") AND (CAMPAIGN.CODE="COMP") THEN
+         RES.ID = COMP.ID
+         POL.URL = HTTP.PATH:RES.ID:".PDF"
+      END ELSE
+         IF UPCASE(CAR.INSPECT)="Y" THEN
+            RES.ID = MTAP.ID
+            APPL.URL = HTTP.PATH:RES.ID:".PDF"
+         END ELSE
+            RES.ID = VOL.ID
+            POL.URL = HTTP.PATH:RES.ID:".PDF"
+         END
+      END
+      GENPDF.IND = "T"
+      RETURN
+5000:*--- Response
+      IF ERR.REC # "" THEN RETURN
+      RES.MSG = "" ; RES.POL = ""
+      OUTREC = ""
+      OUTREC<-1> = \{\
+      OUTREC<-1> = \"transactionId":"\:TRAN.ID:\",\
+      OUTREC<-1> = \"refNbr":"\:REF.NBR:\",\
+      OUTREC<-1> = \"transactionResult":"\:TRAN.RES:\",\
+      OUTREC<-1> = \"errorDesc":"\:RES.MSG:\",\
+      OUTREC<-1> = \"applicationNbr":"\:MTAP.ID:\",\
+      OUTREC<-1> = \"applicationURL":"\:APPL.URL:\",\
+      IF (COMP.IND="1") AND (CAMPAIGN.CODE="COMP") THEN
+         RES.POL = COMP.ID
+      END ELSE
+         IF (COMP.IND="1") AND (COMP.ID#"") THEN
+            RES.POL = VOL.ID:";":COMP.ID
+         END ELSE
+            RES.POL = VOL.ID
+         END
+      END
+      OUTREC<-1> = \"policyNbr":"\:RES.POL:\",\
+      OUTREC<-1> = \"policyURL":"\:POL.URL:\"\
+      OUTREC<-1> = \}\
+      RETURN
+8000:*--- Open files
+      OPEN "","PV.PARAM" TO PVPM.FL ELSE STOP
+      OPEN "","MT.POLICY.TEMPLATE.WS" TO MTTM.FL ELSE STOP
+      OPEN "","MT.APPL" TO MTAP.FL ELSE STOP
+      OPEN "","MT.POLICY" TO MTPL.FL ELSE STOP
+      OPEN "","MT.POLICY.HIS" TO MTPH.FL ELSE STOP
+      OPEN "","MT.POLICY.CHASSIS" TO MTXC.FL ELSE STOP
+      OPEN "","MT.POLICY.VEHICLE" TO MTXV.FL ELSE STOP
+      OPEN "","NUMBER.MAST" TO NUM.FL ELSE STOP
+      OPEN "","VEHCATE.MAST" TO VCAT.FL ELSE STOP
+      OPEN "","CAMPAIGN.MAST" TO CAMP.FL ELSE STOP
+      OPEN "","CLIENT.MAST" TO CLNT.FL ELSE STOP
+      OPEN "","MT.VEHTYPE" TO MTTY.FL ELSE STOP
+      OPEN "","MT.VEHDET" TO MTVD.FL ELSE STOP
+      OPEN "","STMT.MAST" TO STMT.FL ELSE RETURN
+      OPEN "","STMT.MAST.HIS" TO STHS.FL ELSE RETURN
+      OPEN "","PV.SPOOLLOG" TO PVSP.FL ELSE STOP
+      CUR1.DD = OCONV(DATE(),"DD") + 0
+      BEGIN CASE
+         CASE (CUR1.DD GE 1) AND (CUR1.DD LE 10)
+            OPEN "","WS.AUDIT1" TO WSAD.FL ELSE STOP
+         CASE (CUR1.DD GE 11) AND (CUR1.DD LE 20)
+            OPEN "","WS.AUDIT2" TO WSAD.FL ELSE STOP
+         CASE 1 ; 
+            OPEN "","WS.AUDIT3" TO WSAD.FL ELSE STOP
+      END CASE
+      OPEN "TEMP" TO TMP.FL ELSE STOP
+      W=""
+      RETURN
+9000:*--- Initialize
+      OUTREC = ""
+      CALL GETSYSTEMDATE(CDATE$)
+*--- Default parameter
+      TRAN.ID = WRK.REC<1>
+      TRAN.DATE = WRK.REC<2>
+      TRAN.TIME = WRK.REC<3>
+      TRAN.TYPE = WRK.REC<19>
+      PTR.CODE = WRK.REC<190,1>
+      HTTP.PATH = WRK.REC<190,2>
+      WRK.REC<190> = ""
+*
+      ATEM.ID = "" ; TRAN.RES = "SUCCESS"
+      ECODE = "" ; EDESC = "" ; ERR.REC = ""
+      RES.CAMP.CODE = "" ; RES.CAMP.DESC = ""
+      RES.POL.TYPE = ""
+      SUM.INS = 0 ; SUM.INS2 = 0
+      TOTAL.DUE = 0 ; VAT = 0 ; STAMP = 0 ; GROSS.PREM = 0
+      TVI.GARAGE = ""
+      TPBI.PER = 0 ; TPBI.ACC = 0 ; TPD.ACC = 0
+      PA.SUM.INS1 = 0 ; PA.SUM.INS2 = 0
+      PA.NBR1 = 0 ; PA.NBR2 = 0
+      MED.SUM.INS1 = 0 ; MED.SUM.INS2 = 0
+      MED.NBR1 = 0 ; MED.NBR2 = 0
+      DEDUCT.OWN = 0 ; DEDUCT.TP = 0
+      BOND = 0 ; COVER.DAY=""
+      RED.PLATE = "ป้ายแดง"
+      FOUND.ATEM = 0
+      MTAP.ID = "" ; VOL.ID = "" ; COMP.ID = ""
+      POL.URL = "" ; APPL.URL = ""
+      CON.POL = "F"
+      GENPDF.IND = "F"
+*--- Motor Parameter
+      READ PVMT.REC FROM PVPM.FL, "PARAM.MT" ELSE PVMT.REC = ""
+      YRMTH = PVMT.REC<3>:PVMT.REC<4> 'R%2'
+      YEAR.TH = PVMT.REC<3>+543
+      MONTH = PVMT.REC<4>
+      VLD.YRMTH = PVMT.REC<52>
+      CUR.YY = OCONV(DATE(),"DY")
+      CUR.MM = OCONV(DATE(),"DM") 'R%2'
+      CUR.DD = OCONV(DATE(),"DD") 'R%2'
+      CUR.TT = OCONV(TIME(),"MT")
+      CONVERT ":" TO "" IN CUR.TT
+*--- STAMP/VAT
+      READ PVGB.REC FROM PVPM.FL, "GLOBAL" ELSE PVGB.REC = ""
+      DCNT1 = DCOUNT(PVGB.REC<21>,VM$)
+      FOR I = DCNT1 TO 1 STEP -1
+         STA.PCT = PVGB.REC<23,I>
+         VAT.PCT = PVGB.REC<24,I>
+         IF DATE() GE PVGB.REC<21,I> THEN EXIT
+      NEXT I
+      MOTORCYCLE = "610":VM$:"620":VM$:"630"
+*--- Read Param MSP
+      READ PVMSP.REC FROM PVPM.FL, "PARAM.MSP" ELSE PVTS.REC = ""
+      ERR.CODE.PARAM = CHANGE(PVMSP.REC<1>,"|",VM$)
+      ERR.DESC.PARAM = CHANGE(PVMSP.REC<2>,"|",VM$)
+      VEH.TYPE.PARAM = PVMSP.REC<3>
+      UOM.INDEX.PARAM = PVMSP.REC<4>
+      MEASURE.PARAM = PVMSP.REC<5>
+      UOM.PARAM = PVMSP.REC<6>
+      ALLOW.CAMPAIGN = PVMSP.REC<11>
+      CAMP.POLTYPE = PVMSP.REC<12>
+      CAMP.WC= PVMSP.REC<13>
+      READ PVPM.REC FROM PVPM.FL, "PARAM.CAMPAIGN" ELSE PVPM.REC = ""
+      VER.NBR = PVPM.REC<3>
+      VER.DATE = PVPM.REC<4>
+      VER.SEQ = ""
+      M.IDX1 = DCOUNT(VER.NBR,VM$)
+      FOR IDX1 = M.IDX1 TO 1 STEP -1
+         IF DATE() GE VER.DATE<1,IDX1> THEN
+            VER.SEQ = VER.NBR<1,IDX1>
+            EXIT
+         END
+      NEXT IDX1
+      RETURN
+9999:*--- End of Job
+      RETURN
