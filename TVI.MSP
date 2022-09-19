@@ -1,7 +1,7 @@
       SUBROUTINE TVI.MSP.MNG(WRK.REC,OUTREC)
 ***********************************************************************
 *     Program Desc  : Motor Sale Protal
-*     Programmer    : Win
+*     Programmer    : Win,test
 *     Creation Date : 06/09/2022
 *     Refference No : IT22_0356
 ***********************************************************************
@@ -42,8 +42,8 @@ $INCLUDE PV.EQU TITLE.MAST
       WRK.REC = CHANGE(WRK.REC,"‡πï","5")
       WRK.REC = CHANGE(WRK.REC,"‡πñ","6")
       WRK.REC = CHANGE(WRK.REC,"‡πó","7")
-      WRK.REC = CHANGE(WRK.REC,"‡πò","8")
-      WRK.REC = CHANGE(WRK.REC,"‡πô","9")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","8")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","9")
       WRK.REC = CHANGE(WRK.REC,"?","")
       CNT1 = DCOUNT(WRK.REC,AM$)
       FOR I = 1 TO CNT1
@@ -105,8 +105,8 @@ $INCLUDE PV.EQU TITLE.MAST
       WRK.REC = CHANGE(WRK.REC,"‡πï","5")
       WRK.REC = CHANGE(WRK.REC,"‡πñ","6")
       WRK.REC = CHANGE(WRK.REC,"‡πó","7")
-      WRK.REC = CHANGE(WRK.REC,"‡πò","8")
-      WRK.REC = CHANGE(WRK.REC,"‡πô","9")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","8")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","9")
       WRK.REC = CHANGE(WRK.REC,"?","")
       CNT1 = DCOUNT(WRK.REC,AM$)
       FOR I = 1 TO CNT1
@@ -161,8 +161,8 @@ $INCLUDE PV.EQU TITLE.MAST
       WRK.REC = CHANGE(WRK.REC,"‡πï","5")
       WRK.REC = CHANGE(WRK.REC,"‡πñ","6")
       WRK.REC = CHANGE(WRK.REC,"‡πó","7")
-      WRK.REC = CHANGE(WRK.REC,"‡πò","8")
-      WRK.REC = CHANGE(WRK.REC,"‡πô","9")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","8")
+      WRK.REC = CHANGE(WRK.REC,"‡πˇ","9")
       WRK.REC = CHANGE(WRK.REC,"?","")
 
       CNT1 = DCOUNT(WRK.REC,AM$)
@@ -964,9 +964,9 @@ $INCLUDE PV.EQU TITLE.MAST
       DEDUCT.TP = OCONV(ATEM.REC<MTPL.DEDUCT.OWN.TP,2>,"MR2")
       COVER.DAY = OCONV(RES.CAMP.CODE,"TCAMPAIGN.MAST;X;;":CAMP.COVER.DAYS)
       IF COVER.DAY+0 = 0 THEN
-         COVER.DAY = "1 ‡∏õ‡∏µ"
+         COVER.DAY = "1 ‡∏ˇ‡∏µ"
       END ELSE
-         COVER.DAY:=" ‡∏ß‡∏±‡∏ô"
+         COVER.DAY:=" ‡∏ß‡∏±‡∏ˇ"
       END
       RETURN
 2200:*--- Store & Response
@@ -1246,7 +1246,7 @@ $INCLUDE PV.EQU TITLE.MAST
          MTPL.REC<MTPL.POST.DATE> = ""
          MTPL.REC<MTPL.WORK.STATUS> = "C"
          MTPL.REC<MTPL.TYPE> = "APMT"
-         MTPL.REC<MTPL.REMARKS> = "‡∏£‡∏ß‡∏°‡∏≠‡∏∏‡∏õ‡∏Å‡∏£‡∏ì‡πå‡∏ï‡∏Å‡πÅ‡∏ï‡πà‡∏á":CAR.DECO
+         MTPL.REC<MTPL.REMARKS> = "‡∏£‡∏ß‡∏°‡∏≠‡∏∏‡∏ˇ‡∏ˇ‡∏£‡∏ì‡πˇ‡∏ï‡∏ˇ‡πˇ‡∏ï‡πˇ‡∏ˇ":CAR.DECO
          YY = VOL.EDATE[1,4] + 543
          MM = VOL.EDATE[5,2]
          YYMM = YY[3,2]:MM
@@ -1878,7 +1878,7 @@ $INCLUDE PV.EQU TITLE.MAST
       MED.NBR1 = 0 ; MED.NBR2 = 0
       DEDUCT.OWN = 0 ; DEDUCT.TP = 0
       BOND = 0 ; COVER.DAY=""
-      RED.PLATE = "‡∏õ‡πâ‡∏≤‡∏¢‡πÅ‡∏î‡∏á"
+      RED.PLATE = "‡∏ˇ‡πˇ‡∏≤‡∏¢‡πˇ‡∏î‡∏ˇ"
       FOUND.ATEM = 0
       MTAP.ID = "" ; VOL.ID = "" ; COMP.ID = ""
       POL.URL = "" ; APPL.URL = ""
